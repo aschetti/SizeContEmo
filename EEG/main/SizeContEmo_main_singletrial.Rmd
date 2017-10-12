@@ -25,20 +25,20 @@ expphase <- "main" # experiment phase
 wd <- paste0("D:/OneDrive - UGent/",expname,"/analysis/EEG/",expphase,"/") # work directory
 setwd(wd) # set work directory
 
-# load relevant libraries
-library(knitr) # dynamic report generation
-library(reshape2) # to reshape the data
-library(tidyverse) # install the following packages: ggplot2, tibble, tidyr, readr, purrr, dplyr
-library(viridis) # more color maps
-library(ggthemes) # more themes for ggplot2
-library(Rmisc) # for advanced summary functions
-library(akima) # interpolation of irregularly and regularly spaced data
-library(scales) # scale functions for visualization
-library(mgcv) # general additive (mixed) models and other generalized ridge regression with multiple smoothing parameter estimation
-library(grid) # for graphics
-library(gridExtra) # extra functions for graphics
-library(yarrr) # amazing graphs
-library(BayesFactor) # calculate Bayes factors
+# use pacman to install and load relevant packages
+pacman::p_load("knitr", # dynamic report generation
+               "reshape2", # to reshape the data               
+               "tidyverse", # install the following packages: ggplot2, tibble, tidyr, readr, purrr, dplyr
+               "viridis", # more color maps
+               "ggthemes", # more themes for ggplot2
+               "Rmisc", # for advanced summary functions
+               "akima", # interpolation of irregularly and regularly spaced data
+               "scales", # scale functions for visualization
+               "mgcv", # general additive (mixed) models and other generalized ridge regression with multiple smoothing parameter estimation
+               "grid", # for graphics
+               "gridExtra", # extra functions for graphics
+               "yarrr", # amazing graphs
+               "BayesFactor") # calculate Bayes factors
 
 # setup output
 options(width=120,scipen=999,digits=3) # change output width (for better printing), disable scientific notation (default: scipen=0), constrain output to 4 decimals
