@@ -1,0 +1,13 @@
+Participant,Cont,Size,Accuracy,RT
+10,High,Large,1,541
+10,High,Small,0.95,549
+10,Low,Large,1,580
+10,Low,Small,1,647
+11,High,Large,1,606
+11,High,Small,0.95,649
+11,Low,Large,1,652
+11,Low,Small,0.9,723
+12,High,Large,0.95,541
+12,High,Small,1,541
+12,Low,Large,0.95,580
+12,Low,Small,0.75,647

@@ -1,0 +1,995 @@
+---
+title: "<center> <h1>***SIZECONTEMO***</h1> </center>"
+author: '[Antonio Schettino](https://www.researchgate.net/profile/Antonio_Schettino2 "Antonio Schettino")'
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    theme: united
+    highlight: tango
+    code_folding: hide
+    toc: true
+    toc_float: true
+---
+
+In this project we will investigate the electrophysiological correlates of the combined processing of basic visual properties (i.e., size and contrast) and the emotional content of simple words. 
+
+```{r setup_environment,echo=FALSE,warning=FALSE,message=FALSE}
+# setup work environment
+# dev.off() # clear plots (if no plots are present, comment it out or it will throw an error)
+cat("\014") # clear console
+rm(list=ls()) # clear environment
+set.seed(9001) # specify seed for RNG and ensure reproducible results (it's over 9000!)
+
+expname <- "SizeContEmo" # experiment name
+expphase <- "pilot" # experiment phase
+wd <- paste("D:/OneDrive - UGent/",expname,"/analysis/EEG/",expphase,"/",sep="") # work directory
+setwd(wd) # set work directory
+
+# load relevant libraries
+library(knitr) # dynamic report generation
+library(Rmisc) # for advanced summary functions
+library(yarrr) # amazing graphs
+library(fitdistrplus) # fit parametric distributions to non-censored or censored data
+library(lme4) # linear mixed-effects models
+library(car) # functions for applied regressions
+library(lsmeans) # obtain least-squares means for linear, generalized linear, and mixed models
+```
+
+```{r setup_output}
+# setup report output
+options(width=120,scipen=999,digits=3) # change output width (for better printing), disable scientific notation (default: scipen=0), constrain output to 4 decimals
+opts_chunk$set(warning=FALSE,message=FALSE,fig.width=10,fig.height=6) # for each chunk, display the output but not the R code (echo=FALSE), no package warnings (message=FALSE), no package messages (message=FALSE), width and height of all figures
+```
+
+```{r main_data}
+data.EEG.trial.all <- read.csv(paste(expphase,"_trialEEG.csv",sep=""),header=TRUE) # load data
+
+data.EEG.trial <- data.EEG.trial.all[data.EEG.trial.all$bin %in% c(1:8),] # subset trials main experiment
+
+data.EEG.trial$size <- revalue(factor(data.EEG.trial$bin),c("1"="large","2"="small","3"="large","4"="small","5"="large","6"="small","7"="large","8"="small")) # main effect of size
+
+data.EEG.trial$cont <- revalue(factor(data.EEG.trial$bin),c("1"="dark","2"="dark","3"="bright","4"="bright","5"="dark","6"="dark","7"="bright","8"="bright")) # main effect of contrast
+
+data.EEG.trial$emo <- revalue(factor(data.EEG.trial$bin),c("1"="negative","2"="negative","3"="negative","4"="negative","5"="neutral","6"="neutral","7"="neutral","8"="neutral")) # main effect of emotion
+
+data.EEG.trial$bin <- revalue(factor(data.EEG.trial$bin),c("1"="negativeLargeDark","2"="negativeSmallDark","3"="negativeLargeBright","4"="negativeSmallBright","5"="neutralLargeDark","6"="neutralSmallDark","7"="neutralLargeBright","8"="neutralSmallBright")) # recode bin variable
+
+data.EEG.trial <- within(data.EEG.trial,size<-relevel(size,ref="large")) # reference size to large
+data.EEG.trial <- within(data.EEG.trial,cont<-relevel(cont,ref="dark")) # reference cont to dark
+data.EEG.trial <- within(data.EEG.trial,emo<-relevel(emo,ref="neutral")) # reference emo to neutral
+```
+
+The data we will use in this demo come from a pilot experiment (N=`r length(unique(data.EEG.trial$participant))`).   
+   
+We will first focus on the ERP data of the main task.   
+
+<center> <h1>***MAIN TASK***</h1> </center>   
+
+```{r main_normality}
+# assess normality
+ERPcomp <- factor(c("P1","N1","EPN","LPP")) # ERP components
+
+for(i in levels(ERPcomp)) { # loop through components
+  for(j in levels(data.EEG.trial$bin)) { # loop through conditions
+    tempdata <- data.EEG.trial[data.EEG.trial$bin==j,i] # subset current condition and ERP
+    
+    jpeg(filename=paste(wd,"graphs/main/",i,"/",j,".jpg",sep=""),width=480,height=480,units="px",quality=100) # save as jpeg
+    plotdist(tempdata,histo=TRUE,demp=TRUE) # empirical density and cumulative distribution
+    dev.off()
+  }
+}
+```
+
+Density plots (not shown in the output) suggest that the normal distribution is a parsimonious approximate description of the data.   
+   
+We will use linear mixed-effects models with random intercepts and fixed slopes. Models with random slopes have troubles converging, particularly on small datasets.
+The random factor is participants, although in the future we will include items (i.e., the individual words) as well.
+
+<center> <h1>*P1*</h1> </center>
+
+```{r main_P1_graph}
+# summarize data
+summary.data.EEG.trial <- summarySEwithin(data.EEG.trial,"P1",withinvars=c("size","cont","emo"),idvar="participant")
+summary.data.EEG.trial
+
+# P1 graph
+pirateplot(formula=P1~emo+cont+size, # dependent~independent variables
+           data=data.EEG.trial, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+We will compute the following models:   
+   
+1. null model
+2. main effect of size
+3. main effect of contrast
+4. main effect of emotion
+5. main effects of size and contrast
+6. main effects of size and emotion
+7. main effects of contrast and emotion
+8. main effects of size, contrast, and emotion
+9. size x contrast interaction
+10. size x emotion interaction
+11. contrast x emotion interaction
+12. size x contrast x emotion interaction   
+   
+We will then compare them all using the Bayesian Infomation Criterion (BIC).
+
+```{r main_P1_models}
+### null model
+P1.null.lmer.fixedslope <- lmer(P1~1+(1|participant),data=data.EEG.trial) # model
+summary.P1.null.lmer.fixedslope <- summary(P1.null.lmer.fixedslope) # summary model
+
+### main effect of size
+P1.size.lmer.fixedslope <- lmer(P1~size+(1|participant),data=data.EEG.trial) # model
+summary.P1.size.lmer.fixedslope <- summary(P1.size.lmer.fixedslope) # summary model
+pvalue.P1.size.lmer.fixedslope <- Anova(P1.size.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.size.lmer.fixedslope.contr <- lsmeans(P1.size.lmer.fixedslope,pairwise~size,adjust="tukey")
+# P1.size.lmer.fixedslope.contr$contrasts
+
+### main effect of contrast
+P1.cont.lmer.fixedslope <- lmer(P1~cont+(1|participant),data=data.EEG.trial) # model
+summary.P1.cont.lmer.fixedslope <- summary(P1.cont.lmer.fixedslope) # summary model
+pvalue.P1.cont.lmer.fixedslope <- Anova(P1.cont.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.cont.lmer.fixedslope.contr <- lsmeans(P1.cont.lmer.fixedslope,pairwise~cont,adjust="tukey")
+# P1.cont.lmer.fixedslope.contr$contrasts
+
+### main effect of emotion
+P1.emo.lmer.fixedslope <- lmer(P1~emo+(1|participant),data=data.EEG.trial) # model
+summary.P1.emo.lmer.fixedslope <- summary(P1.emo.lmer.fixedslope) # summary model
+pvalue.P1.emo.lmer.fixedslope <- Anova(P1.emo.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.emo.lmer.fixedslope.contr <- lsmeans(P1.emo.lmer.fixedslope,pairwise~emo,adjust="tukey")
+# P1.emo.lmer.fixedslope.contr$contrasts
+
+### main effects of size and contrast
+P1.sizecontmaineff.lmer.fixedslope <- lmer(P1~size+cont+(1|participant),data=data.EEG.trial) # model
+summary.P1.sizecontmaineff.lmer.fixedslope <- summary(P1.sizecontmaineff.lmer.fixedslope) # summary model
+pvalue.P1.sizecontmaineff.lmer.fixedslope <- Anova(P1.sizecontmaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.sizecontmaineff.lmer.fixedslope.contr <- lsmeans(P1.sizecontmaineff.lmer.fixedslope,pairwise~size+cont,adjust="tukey")
+# P1.sizecontmaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of size and emotion
+P1.sizeemomaineff.lmer.fixedslope <- lmer(P1~size+emo+(1|participant),data=data.EEG.trial) # model
+summary.P1.sizeemomaineff.lmer.fixedslope <- summary(P1.sizeemomaineff.lmer.fixedslope) # summary model
+pvalue.P1.sizeemomaineff.lmer.fixedslope <- Anova(P1.sizeemomaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.sizeemomaineff.lmer.fixedslope.contr <- lsmeans(P1.sizeemomaineff.lmer.fixedslope,pairwise~size+emo,adjust="tukey")
+# P1.sizeemomaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of contrast and emotion
+P1.contemomaineff.lmer.fixedslope <- lmer(P1~cont+emo+(1|participant),data=data.EEG.trial) # model
+summary.P1.contemomaineff.lmer.fixedslope <- summary(P1.contemomaineff.lmer.fixedslope) # summary model
+pvalue.P1.contemomaineff.lmer.fixedslope <- Anova(P1.contemomaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.contemomaineff.lmer.fixedslope.contr <- lsmeans(P1.contemomaineff.lmer.fixedslope,pairwise~cont+emo,adjust="tukey")
+# P1.contemomaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of size, contrast, and emotion
+P1.allmaineff.lmer.fixedslope <- lmer(P1~size+cont+emo+(1|participant),data=data.EEG.trial) # model
+summary.P1.allmaineff.lmer.fixedslope <- summary(P1.allmaineff.lmer.fixedslope) # summary model
+pvalue.P1.allmaineff.lmer.fixedslope <- Anova(P1.allmaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.allmaineff.lmer.fixedslope.contr <- lsmeans(P1.allmaineff.lmer.fixedslope,pairwise~size+cont+emo,adjust="tukey")
+# P1.allmaineff.lmer.fixedslope.contr$contrasts
+
+### size x contrast interaction
+P1.sizecont.lmer.fixedslope <- lmer(P1~size*cont+(1|participant),data=data.EEG.trial) # model
+summary.P1.sizecont.lmer.fixedslope <- summary(P1.sizecont.lmer.fixedslope) # summary model
+pvalue.P1.sizecont.lmer.fixedslope <- Anova(P1.sizecont.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.sizecont.lmer.fixedslope.contr <- lsmeans(P1.sizecont.lmer.fixedslope,pairwise~size*cont,adjust="tukey")
+# P1.sizecont.lmer.fixedslope.contr$contrasts
+
+### size x emotion interaction
+P1.sizeemo.lmer.fixedslope <- lmer(P1~size*emo+(1|participant),data=data.EEG.trial) # model
+summary.P1.sizeemo.lmer.fixedslope <- summary(P1.sizeemo.lmer.fixedslope) # summary model
+pvalue.P1.sizeemo.lmer.fixedslope <- Anova(P1.sizeemo.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.sizeemo.lmer.fixedslope.contr <- lsmeans(P1.sizeemo.lmer.fixedslope,pairwise~size*emo,adjust="tukey")
+# P1.sizeemo.lmer.fixedslope.contr$contrasts
+
+### contrast x emotion interaction
+P1.contemo.lmer.fixedslope <- lmer(P1~cont*emo+(1|participant),data=data.EEG.trial) # model
+summary.P1.contemo.lmer.fixedslope <- summary(P1.contemo.lmer.fixedslope) # summary model
+pvalue.P1.contemo.lmer.fixedslope <- Anova(P1.contemo.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.contemo.lmer.fixedslope.contr <- lsmeans(P1.contemo.lmer.fixedslope,pairwise~cont*emo,adjust="tukey")
+# P1.contemo.lmer.fixedslope.contr$contrasts
+
+### size x contrast x emotion interaction
+P1.sizecontemo.lmer.fixedslope <- lmer(P1~size*cont*emo+(1|participant),data=data.EEG.trial) # model
+summary.P1.sizecontemo.lmer.fixedslope <- summary(P1.sizecontemo.lmer.fixedslope) # summary model
+pvalue.P1.sizecontemo.lmer.fixedslope <- Anova(P1.sizecontemo.lmer.fixedslope) # calculate p-values
+# contrasts
+P1.sizecontemo.lmer.fixedslope.contr <- lsmeans(P1.sizecontemo.lmer.fixedslope,pairwise~size*cont*emo,adjust="tukey")
+# P1.sizecontemo.lmer.fixedslope.contr$contrasts
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+P1.lmer.fixedslope.BIC <- BIC(P1.null.lmer.fixedslope,P1.size.lmer.fixedslope,P1.cont.lmer.fixedslope,P1.emo.lmer.fixedslope,P1.sizecontmaineff.lmer.fixedslope,P1.sizeemomaineff.lmer.fixedslope,P1.contemomaineff.lmer.fixedslope,P1.allmaineff.lmer.fixedslope,P1.sizecont.lmer.fixedslope,P1.sizeemo.lmer.fixedslope,P1.contemo.lmer.fixedslope,P1.sizecontemo.lmer.fixedslope)
+
+# summary
+compare.P1.lmer.fixedslope <- data.frame(model=c("null","size","contrast","emotion","size+contrast","size+emotion","contrast+emotion","size+contrast+emotion","size*contrast","size*emotion","contrast*emotion","size*contrast*emotion"),BIC=P1.lmer.fixedslope.BIC$BIC)
+compare.P1.lmer.fixedslope <- compare.P1.lmer.fixedslope[with(compare.P1.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.P1.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.P1.lmer.fixedslope[1,1]`. 
+
+<center> <h1>*N1*</h1> </center>
+
+```{r main_N1_graph}
+# summarize data
+summary.data.EEG.trial <- summarySEwithin(data.EEG.trial,"N1",withinvars=c("size","cont","emo"),idvar="participant")
+summary.data.EEG.trial
+
+# N1 graph
+pirateplot(formula=N1~emo+cont+size, # dependent~independent variables
+           data=data.EEG.trial, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+```{r main_N1_models}
+### null model
+N1.null.lmer.fixedslope <- lmer(N1~1+(1|participant),data=data.EEG.trial) # model
+summary.N1.null.lmer.fixedslope <- summary(N1.null.lmer.fixedslope) # summary model
+
+### main effect of size
+N1.size.lmer.fixedslope <- lmer(N1~size+(1|participant),data=data.EEG.trial) # model
+summary.N1.size.lmer.fixedslope <- summary(N1.size.lmer.fixedslope) # summary model
+pvalue.N1.size.lmer.fixedslope <- Anova(N1.size.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.size.lmer.fixedslope.contr <- lsmeans(N1.size.lmer.fixedslope,pairwise~size,adjust="tukey")
+# N1.size.lmer.fixedslope.contr$contrasts
+
+### main effect of contrast
+N1.cont.lmer.fixedslope <- lmer(N1~cont+(1|participant),data=data.EEG.trial) # model
+summary.N1.cont.lmer.fixedslope <- summary(N1.cont.lmer.fixedslope) # summary model
+pvalue.N1.cont.lmer.fixedslope <- Anova(N1.cont.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.cont.lmer.fixedslope.contr <- lsmeans(N1.cont.lmer.fixedslope,pairwise~cont,adjust="tukey")
+# N1.cont.lmer.fixedslope.contr$contrasts
+
+### main effect of emotion
+N1.emo.lmer.fixedslope <- lmer(N1~emo+(1|participant),data=data.EEG.trial) # model
+summary.N1.emo.lmer.fixedslope <- summary(N1.emo.lmer.fixedslope) # summary model
+pvalue.N1.emo.lmer.fixedslope <- Anova(N1.emo.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.emo.lmer.fixedslope.contr <- lsmeans(N1.emo.lmer.fixedslope,pairwise~emo,adjust="tukey")
+# N1.emo.lmer.fixedslope.contr$contrasts
+
+### main effects of size and contrast
+N1.sizecontmaineff.lmer.fixedslope <- lmer(N1~size+cont+(1|participant),data=data.EEG.trial) # model
+summary.N1.sizecontmaineff.lmer.fixedslope <- summary(N1.sizecontmaineff.lmer.fixedslope) # summary model
+pvalue.N1.sizecontmaineff.lmer.fixedslope <- Anova(N1.sizecontmaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.sizecontmaineff.lmer.fixedslope.contr <- lsmeans(N1.sizecontmaineff.lmer.fixedslope,pairwise~size+cont,adjust="tukey")
+# N1.sizecontmaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of size and emotion
+N1.sizeemomaineff.lmer.fixedslope <- lmer(N1~size+emo+(1|participant),data=data.EEG.trial) # model
+summary.N1.sizeemomaineff.lmer.fixedslope <- summary(N1.sizeemomaineff.lmer.fixedslope) # summary model
+pvalue.N1.sizeemomaineff.lmer.fixedslope <- Anova(N1.sizeemomaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.sizeemomaineff.lmer.fixedslope.contr <- lsmeans(N1.sizeemomaineff.lmer.fixedslope,pairwise~size+emo,adjust="tukey")
+# N1.sizeemomaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of contrast and emotion
+N1.contemomaineff.lmer.fixedslope <- lmer(N1~cont+emo+(1|participant),data=data.EEG.trial) # model
+summary.N1.contemomaineff.lmer.fixedslope <- summary(N1.contemomaineff.lmer.fixedslope) # summary model
+pvalue.N1.contemomaineff.lmer.fixedslope <- Anova(N1.contemomaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.contemomaineff.lmer.fixedslope.contr <- lsmeans(N1.contemomaineff.lmer.fixedslope,pairwise~cont+emo,adjust="tukey")
+# N1.contemomaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of size, contrast, and emotion
+N1.allmaineff.lmer.fixedslope <- lmer(N1~size+cont+emo+(1|participant),data=data.EEG.trial) # model
+summary.N1.allmaineff.lmer.fixedslope <- summary(N1.allmaineff.lmer.fixedslope) # summary model
+pvalue.N1.allmaineff.lmer.fixedslope <- Anova(N1.allmaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.allmaineff.lmer.fixedslope.contr <- lsmeans(N1.allmaineff.lmer.fixedslope,pairwise~size+cont+emo,adjust="tukey")
+# N1.allmaineff.lmer.fixedslope.contr$contrasts
+
+### size x contrast interaction
+N1.sizecont.lmer.fixedslope <- lmer(N1~size*cont+(1|participant),data=data.EEG.trial) # model
+summary.N1.sizecont.lmer.fixedslope <- summary(N1.sizecont.lmer.fixedslope) # summary model
+pvalue.N1.sizecont.lmer.fixedslope <- Anova(N1.sizecont.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.sizecont.lmer.fixedslope.contr <- lsmeans(N1.sizecont.lmer.fixedslope,pairwise~size*cont,adjust="tukey")
+# N1.sizecont.lmer.fixedslope.contr$contrasts
+
+### size x emotion interaction
+N1.sizeemo.lmer.fixedslope <- lmer(N1~size*emo+(1|participant),data=data.EEG.trial) # model
+summary.N1.sizeemo.lmer.fixedslope <- summary(N1.sizeemo.lmer.fixedslope) # summary model
+pvalue.N1.sizeemo.lmer.fixedslope <- Anova(N1.sizeemo.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.sizeemo.lmer.fixedslope.contr <- lsmeans(N1.sizeemo.lmer.fixedslope,pairwise~size*emo,adjust="tukey")
+# N1.sizeemo.lmer.fixedslope.contr$contrasts
+
+### contrast x emotion interaction
+N1.contemo.lmer.fixedslope <- lmer(N1~cont*emo+(1|participant),data=data.EEG.trial) # model
+summary.N1.contemo.lmer.fixedslope <- summary(N1.contemo.lmer.fixedslope) # summary model
+pvalue.N1.contemo.lmer.fixedslope <- Anova(N1.contemo.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.contemo.lmer.fixedslope.contr <- lsmeans(N1.contemo.lmer.fixedslope,pairwise~cont*emo,adjust="tukey")
+# N1.contemo.lmer.fixedslope.contr$contrasts
+
+### size x contrast x emotion interaction
+N1.sizecontemo.lmer.fixedslope <- lmer(N1~size*cont*emo+(1|participant),data=data.EEG.trial) # model
+summary.N1.sizecontemo.lmer.fixedslope <- summary(N1.sizecontemo.lmer.fixedslope) # summary model
+pvalue.N1.sizecontemo.lmer.fixedslope <- Anova(N1.sizecontemo.lmer.fixedslope) # calculate p-values
+# contrasts
+N1.sizecontemo.lmer.fixedslope.contr <- lsmeans(N1.sizecontemo.lmer.fixedslope,pairwise~size*cont*emo,adjust="tukey")
+# N1.sizecontemo.lmer.fixedslope.contr$contrasts
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+N1.lmer.fixedslope.BIC <- BIC(N1.null.lmer.fixedslope,N1.size.lmer.fixedslope,N1.cont.lmer.fixedslope,N1.emo.lmer.fixedslope,N1.sizecontmaineff.lmer.fixedslope,N1.sizeemomaineff.lmer.fixedslope,N1.contemomaineff.lmer.fixedslope,N1.allmaineff.lmer.fixedslope,N1.sizecont.lmer.fixedslope,N1.sizeemo.lmer.fixedslope,N1.contemo.lmer.fixedslope,N1.sizecontemo.lmer.fixedslope)
+
+# summary
+compare.N1.lmer.fixedslope <- data.frame(model=c("null","size","contrast","emotion","size+contrast","size+emotion","contrast+emotion","size+contrast+emotion","size*contrast","size*emotion","contrast*emotion","size*contrast*emotion"),BIC=N1.lmer.fixedslope.BIC$BIC)
+compare.N1.lmer.fixedslope <- compare.N1.lmer.fixedslope[with(compare.N1.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.N1.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.N1.lmer.fixedslope[1,1]`. 
+
+<center> <h1>*EPN*</h1> </center>
+
+```{r main_EPN_graph}
+# summarize data
+summary.data.EEG.trial <- summarySEwithin(data.EEG.trial,"EPN",withinvars=c("size","cont","emo"),idvar="participant")
+summary.data.EEG.trial
+
+# EPN graph
+pirateplot(formula=EPN~emo+cont+size, # dependent~independent variables
+           data=data.EEG.trial, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+```{r main_EPN_models}
+### null model
+EPN.null.lmer.fixedslope <- lmer(EPN~1+(1|participant),data=data.EEG.trial) # model
+summary.EPN.null.lmer.fixedslope <- summary(EPN.null.lmer.fixedslope) # summary model
+
+### main effect of size
+EPN.size.lmer.fixedslope <- lmer(EPN~size+(1|participant),data=data.EEG.trial) # model
+summary.EPN.size.lmer.fixedslope <- summary(EPN.size.lmer.fixedslope) # summary model
+pvalue.EPN.size.lmer.fixedslope <- Anova(EPN.size.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.size.lmer.fixedslope.contr <- lsmeans(EPN.size.lmer.fixedslope,pairwise~size,adjust="tukey")
+# EPN.size.lmer.fixedslope.contr$contrasts
+
+### main effect of contrast
+EPN.cont.lmer.fixedslope <- lmer(EPN~cont+(1|participant),data=data.EEG.trial) # model
+summary.EPN.cont.lmer.fixedslope <- summary(EPN.cont.lmer.fixedslope) # summary model
+pvalue.EPN.cont.lmer.fixedslope <- Anova(EPN.cont.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.cont.lmer.fixedslope.contr <- lsmeans(EPN.cont.lmer.fixedslope,pairwise~cont,adjust="tukey")
+# EPN.cont.lmer.fixedslope.contr$contrasts
+
+### main effect of emotion
+EPN.emo.lmer.fixedslope <- lmer(EPN~emo+(1|participant),data=data.EEG.trial) # model
+summary.EPN.emo.lmer.fixedslope <- summary(EPN.emo.lmer.fixedslope) # summary model
+pvalue.EPN.emo.lmer.fixedslope <- Anova(EPN.emo.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.emo.lmer.fixedslope.contr <- lsmeans(EPN.emo.lmer.fixedslope,pairwise~emo,adjust="tukey")
+# EPN.emo.lmer.fixedslope.contr$contrasts
+
+### main effects of size and contrast
+EPN.sizecontmaineff.lmer.fixedslope <- lmer(EPN~size+cont+(1|participant),data=data.EEG.trial) # model
+summary.EPN.sizecontmaineff.lmer.fixedslope <- summary(EPN.sizecontmaineff.lmer.fixedslope) # summary model
+pvalue.EPN.sizecontmaineff.lmer.fixedslope <- Anova(EPN.sizecontmaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.sizecontmaineff.lmer.fixedslope.contr <- lsmeans(EPN.sizecontmaineff.lmer.fixedslope,pairwise~size+cont,adjust="tukey")
+# EPN.sizecontmaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of size and emotion
+EPN.sizeemomaineff.lmer.fixedslope <- lmer(EPN~size+emo+(1|participant),data=data.EEG.trial) # model
+summary.EPN.sizeemomaineff.lmer.fixedslope <- summary(EPN.sizeemomaineff.lmer.fixedslope) # summary model
+pvalue.EPN.sizeemomaineff.lmer.fixedslope <- Anova(EPN.sizeemomaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.sizeemomaineff.lmer.fixedslope.contr <- lsmeans(EPN.sizeemomaineff.lmer.fixedslope,pairwise~size+emo,adjust="tukey")
+# EPN.sizeemomaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of contrast and emotion
+EPN.contemomaineff.lmer.fixedslope <- lmer(EPN~cont+emo+(1|participant),data=data.EEG.trial) # model
+summary.EPN.contemomaineff.lmer.fixedslope <- summary(EPN.contemomaineff.lmer.fixedslope) # summary model
+pvalue.EPN.contemomaineff.lmer.fixedslope <- Anova(EPN.contemomaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.contemomaineff.lmer.fixedslope.contr <- lsmeans(EPN.contemomaineff.lmer.fixedslope,pairwise~cont+emo,adjust="tukey")
+# EPN.contemomaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of size, contrast, and emotion
+EPN.allmaineff.lmer.fixedslope <- lmer(EPN~size+cont+emo+(1|participant),data=data.EEG.trial) # model
+summary.EPN.allmaineff.lmer.fixedslope <- summary(EPN.allmaineff.lmer.fixedslope) # summary model
+pvalue.EPN.allmaineff.lmer.fixedslope <- Anova(EPN.allmaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.allmaineff.lmer.fixedslope.contr <- lsmeans(EPN.allmaineff.lmer.fixedslope,pairwise~size+cont+emo,adjust="tukey")
+# EPN.allmaineff.lmer.fixedslope.contr$contrasts
+
+### size x contrast interaction
+EPN.sizecont.lmer.fixedslope <- lmer(EPN~size*cont+(1|participant),data=data.EEG.trial) # model
+summary.EPN.sizecont.lmer.fixedslope <- summary(EPN.sizecont.lmer.fixedslope) # summary model
+pvalue.EPN.sizecont.lmer.fixedslope <- Anova(EPN.sizecont.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.sizecont.lmer.fixedslope.contr <- lsmeans(EPN.sizecont.lmer.fixedslope,pairwise~size*cont,adjust="tukey")
+# EPN.sizecont.lmer.fixedslope.contr$contrasts
+
+### size x emotion interaction
+EPN.sizeemo.lmer.fixedslope <- lmer(EPN~size*emo+(1|participant),data=data.EEG.trial) # model
+summary.EPN.sizeemo.lmer.fixedslope <- summary(EPN.sizeemo.lmer.fixedslope) # summary model
+pvalue.EPN.sizeemo.lmer.fixedslope <- Anova(EPN.sizeemo.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.sizeemo.lmer.fixedslope.contr <- lsmeans(EPN.sizeemo.lmer.fixedslope,pairwise~size*emo,adjust="tukey")
+# EPN.sizeemo.lmer.fixedslope.contr$contrasts
+
+### contrast x emotion interaction
+EPN.contemo.lmer.fixedslope <- lmer(EPN~cont*emo+(1|participant),data=data.EEG.trial) # model
+summary.EPN.contemo.lmer.fixedslope <- summary(EPN.contemo.lmer.fixedslope) # summary model
+pvalue.EPN.contemo.lmer.fixedslope <- Anova(EPN.contemo.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.contemo.lmer.fixedslope.contr <- lsmeans(EPN.contemo.lmer.fixedslope,pairwise~cont*emo,adjust="tukey")
+# EPN.contemo.lmer.fixedslope.contr$contrasts
+
+### size x contrast x emotion interaction
+EPN.sizecontemo.lmer.fixedslope <- lmer(EPN~size*cont*emo+(1|participant),data=data.EEG.trial) # model
+summary.EPN.sizecontemo.lmer.fixedslope <- summary(EPN.sizecontemo.lmer.fixedslope) # summary model
+pvalue.EPN.sizecontemo.lmer.fixedslope <- Anova(EPN.sizecontemo.lmer.fixedslope) # calculate p-values
+# contrasts
+EPN.sizecontemo.lmer.fixedslope.contr <- lsmeans(EPN.sizecontemo.lmer.fixedslope,pairwise~size*cont*emo,adjust="tukey")
+# EPN.sizecontemo.lmer.fixedslope.contr$contrasts
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+EPN.lmer.fixedslope.BIC <- BIC(EPN.null.lmer.fixedslope,EPN.size.lmer.fixedslope,EPN.cont.lmer.fixedslope,EPN.emo.lmer.fixedslope,EPN.sizecontmaineff.lmer.fixedslope,EPN.sizeemomaineff.lmer.fixedslope,EPN.contemomaineff.lmer.fixedslope,EPN.allmaineff.lmer.fixedslope,EPN.sizecont.lmer.fixedslope,EPN.sizeemo.lmer.fixedslope,EPN.contemo.lmer.fixedslope,EPN.sizecontemo.lmer.fixedslope)
+
+# summary
+compare.EPN.lmer.fixedslope <- data.frame(model=c("null","size","contrast","emotion","size+contrast","size+emotion","contrast+emotion","size+contrast+emotion","size*contrast","size*emotion","contrast*emotion","size*contrast*emotion"),BIC=EPN.lmer.fixedslope.BIC$BIC)
+compare.EPN.lmer.fixedslope <- compare.EPN.lmer.fixedslope[with(compare.EPN.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.EPN.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.EPN.lmer.fixedslope[1,1]`. 
+
+<center> <h1>*LPP*</h1> </center>
+
+```{r main_LPP_graph}
+# summarize data
+summary.data.EEG.trial <- summarySEwithin(data.EEG.trial,"LPP",withinvars=c("size","cont","emo"),idvar="participant")
+summary.data.EEG.trial
+
+# LPP graph
+pirateplot(formula=LPP~emo+cont+size, # dependent~independent variables
+           data=data.EEG.trial, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+```{r main_LPP_models}
+### null model
+LPP.null.lmer.fixedslope <- lmer(LPP~1+(1|participant),data=data.EEG.trial) # model
+summary.LPP.null.lmer.fixedslope <- summary(LPP.null.lmer.fixedslope) # summary model
+
+### main effect of size
+LPP.size.lmer.fixedslope <- lmer(LPP~size+(1|participant),data=data.EEG.trial) # model
+summary.LPP.size.lmer.fixedslope <- summary(LPP.size.lmer.fixedslope) # summary model
+pvalue.LPP.size.lmer.fixedslope <- Anova(LPP.size.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.size.lmer.fixedslope.contr <- lsmeans(LPP.size.lmer.fixedslope,pairwise~size,adjust="tukey")
+# LPP.size.lmer.fixedslope.contr$contrasts
+
+### main effect of contrast
+LPP.cont.lmer.fixedslope <- lmer(LPP~cont+(1|participant),data=data.EEG.trial) # model
+summary.LPP.cont.lmer.fixedslope <- summary(LPP.cont.lmer.fixedslope) # summary model
+pvalue.LPP.cont.lmer.fixedslope <- Anova(LPP.cont.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.cont.lmer.fixedslope.contr <- lsmeans(LPP.cont.lmer.fixedslope,pairwise~cont,adjust="tukey")
+# LPP.cont.lmer.fixedslope.contr$contrasts
+
+### main effect of emotion
+LPP.emo.lmer.fixedslope <- lmer(LPP~emo+(1|participant),data=data.EEG.trial) # model
+summary.LPP.emo.lmer.fixedslope <- summary(LPP.emo.lmer.fixedslope) # summary model
+pvalue.LPP.emo.lmer.fixedslope <- Anova(LPP.emo.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.emo.lmer.fixedslope.contr <- lsmeans(LPP.emo.lmer.fixedslope,pairwise~emo,adjust="tukey")
+# LPP.emo.lmer.fixedslope.contr$contrasts
+
+### main effects of size and contrast
+LPP.sizecontmaineff.lmer.fixedslope <- lmer(LPP~size+cont+(1|participant),data=data.EEG.trial) # model
+summary.LPP.sizecontmaineff.lmer.fixedslope <- summary(LPP.sizecontmaineff.lmer.fixedslope) # summary model
+pvalue.LPP.sizecontmaineff.lmer.fixedslope <- Anova(LPP.sizecontmaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.sizecontmaineff.lmer.fixedslope.contr <- lsmeans(LPP.sizecontmaineff.lmer.fixedslope,pairwise~size+cont,adjust="tukey")
+# LPP.sizecontmaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of size and emotion
+LPP.sizeemomaineff.lmer.fixedslope <- lmer(LPP~size+emo+(1|participant),data=data.EEG.trial) # model
+summary.LPP.sizeemomaineff.lmer.fixedslope <- summary(LPP.sizeemomaineff.lmer.fixedslope) # summary model
+pvalue.LPP.sizeemomaineff.lmer.fixedslope <- Anova(LPP.sizeemomaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.sizeemomaineff.lmer.fixedslope.contr <- lsmeans(LPP.sizeemomaineff.lmer.fixedslope,pairwise~size+emo,adjust="tukey")
+# LPP.sizeemomaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of contrast and emotion
+LPP.contemomaineff.lmer.fixedslope <- lmer(LPP~cont+emo+(1|participant),data=data.EEG.trial) # model
+summary.LPP.contemomaineff.lmer.fixedslope <- summary(LPP.contemomaineff.lmer.fixedslope) # summary model
+pvalue.LPP.contemomaineff.lmer.fixedslope <- Anova(LPP.contemomaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.contemomaineff.lmer.fixedslope.contr <- lsmeans(LPP.contemomaineff.lmer.fixedslope,pairwise~cont+emo,adjust="tukey")
+# LPP.contemomaineff.lmer.fixedslope.contr$contrasts
+
+### main effects of size, contrast, and emotion
+LPP.allmaineff.lmer.fixedslope <- lmer(LPP~size+cont+emo+(1|participant),data=data.EEG.trial) # model
+summary.LPP.allmaineff.lmer.fixedslope <- summary(LPP.allmaineff.lmer.fixedslope) # summary model
+pvalue.LPP.allmaineff.lmer.fixedslope <- Anova(LPP.allmaineff.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.allmaineff.lmer.fixedslope.contr <- lsmeans(LPP.allmaineff.lmer.fixedslope,pairwise~size+cont+emo,adjust="tukey")
+# LPP.allmaineff.lmer.fixedslope.contr$contrasts
+
+### size x contrast interaction
+LPP.sizecont.lmer.fixedslope <- lmer(LPP~size*cont+(1|participant),data=data.EEG.trial) # model
+summary.LPP.sizecont.lmer.fixedslope <- summary(LPP.sizecont.lmer.fixedslope) # summary model
+pvalue.LPP.sizecont.lmer.fixedslope <- Anova(LPP.sizecont.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.sizecont.lmer.fixedslope.contr <- lsmeans(LPP.sizecont.lmer.fixedslope,pairwise~size*cont,adjust="tukey")
+# LPP.sizecont.lmer.fixedslope.contr$contrasts
+
+### size x emotion interaction
+LPP.sizeemo.lmer.fixedslope <- lmer(LPP~size*emo+(1|participant),data=data.EEG.trial) # model
+summary.LPP.sizeemo.lmer.fixedslope <- summary(LPP.sizeemo.lmer.fixedslope) # summary model
+pvalue.LPP.sizeemo.lmer.fixedslope <- Anova(LPP.sizeemo.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.sizeemo.lmer.fixedslope.contr <- lsmeans(LPP.sizeemo.lmer.fixedslope,pairwise~size*emo,adjust="tukey")
+# LPP.sizeemo.lmer.fixedslope.contr$contrasts
+
+### contrast x emotion interaction
+LPP.contemo.lmer.fixedslope <- lmer(LPP~cont*emo+(1|participant),data=data.EEG.trial) # model
+summary.LPP.contemo.lmer.fixedslope <- summary(LPP.contemo.lmer.fixedslope) # summary model
+pvalue.LPP.contemo.lmer.fixedslope <- Anova(LPP.contemo.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.contemo.lmer.fixedslope.contr <- lsmeans(LPP.contemo.lmer.fixedslope,pairwise~cont*emo,adjust="tukey")
+# LPP.contemo.lmer.fixedslope.contr$contrasts
+
+### size x contrast x emotion interaction
+LPP.sizecontemo.lmer.fixedslope <- lmer(LPP~size*cont*emo+(1|participant),data=data.EEG.trial) # model
+summary.LPP.sizecontemo.lmer.fixedslope <- summary(LPP.sizecontemo.lmer.fixedslope) # summary model
+pvalue.LPP.sizecontemo.lmer.fixedslope <- Anova(LPP.sizecontemo.lmer.fixedslope) # calculate p-values
+# contrasts
+LPP.sizecontemo.lmer.fixedslope.contr <- lsmeans(LPP.sizecontemo.lmer.fixedslope,pairwise~size*cont*emo,adjust="tukey")
+# LPP.sizecontemo.lmer.fixedslope.contr$contrasts
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+LPP.lmer.fixedslope.BIC <- BIC(LPP.null.lmer.fixedslope,LPP.size.lmer.fixedslope,LPP.cont.lmer.fixedslope,LPP.emo.lmer.fixedslope,LPP.sizecontmaineff.lmer.fixedslope,LPP.sizeemomaineff.lmer.fixedslope,LPP.contemomaineff.lmer.fixedslope,LPP.allmaineff.lmer.fixedslope,LPP.sizecont.lmer.fixedslope,LPP.sizeemo.lmer.fixedslope,LPP.contemo.lmer.fixedslope,LPP.sizecontemo.lmer.fixedslope)
+
+# summary
+compare.LPP.lmer.fixedslope <- data.frame(model=c("null","size","contrast","emotion","size+contrast","size+emotion","contrast+emotion","size+contrast+emotion","size*contrast","size*emotion","contrast*emotion","size*contrast*emotion"),BIC=LPP.lmer.fixedslope.BIC$BIC)
+compare.LPP.lmer.fixedslope <- compare.LPP.lmer.fixedslope[with(compare.LPP.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.LPP.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.LPP.lmer.fixedslope[1,1]`. 
+
+We will move onto the ERP data of the localizers.      
+
+<center> <h1>**SIZE LOCALIZER**</h1> </center>   
+
+```{r sizeloc_data}
+data.EEG.trial.SizeLoc <- data.EEG.trial.all[data.EEG.trial.all$bin %in% c(9:11),] # subset trials size localizer
+
+data.EEG.trial.SizeLoc$bin <- revalue(factor(data.EEG.trial.SizeLoc$bin),c("9"="LocSmall","10"="LocMid","11"="LocLarge")) # recode bin variable
+
+data.EEG.trial.SizeLoc <- within(data.EEG.trial.SizeLoc,bin<-relevel(bin,ref="LocMid")) # reference size to mid
+```
+
+```{r sizeloc_normality}
+# assess normality
+ERPcomp <- factor(c("P1","N1","EPN","LPP")) # ERP components
+
+for(i in levels(ERPcomp)) { # loop through components
+  for(j in levels(data.EEG.trial.SizeLoc$bin)) { # loop through conditions
+    tempdata <- data.EEG.trial.SizeLoc[data.EEG.trial.SizeLoc$bin==j,i] # subset current condition and ERP
+    
+    jpeg(filename=paste(wd,"graphs/SizeLoc/",i,"/",j,".jpg",sep=""),width=480,height=480,units="px",quality=100) # save as jpeg
+    plotdist(tempdata,histo=TRUE,demp=TRUE) # empirical density and cumulative distribution
+    dev.off()
+  }
+}
+```
+
+Density plots (not shown in the output) suggest that the normal distribution is a parsimonious approximate description of the data. Therefore, linear mixed-effects models are appropriate (see above).   
+
+<center> <h1>*P1*</h1> </center>
+
+```{r sizeloc_P1_graph}
+# summarize data
+summary.data.EEG.trial.SizeLoc <- summarySEwithin(data.EEG.trial.SizeLoc,"P1",withinvars="bin",idvar="participant")
+summary.data.EEG.trial.SizeLoc
+
+# P1 graph
+pirateplot(formula=P1~bin, # dependent~independent variables
+           data=data.EEG.trial.SizeLoc, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+We will compare the model with the main effect of size vs. the null model.   
+
+```{r sizeloc_P1_models}
+### null model
+SizeLoc.P1.null.lmer.fixedslope <- lmer(P1~1+(1|participant),data=data.EEG.trial.SizeLoc) # model
+summary.SizeLoc.P1.null.lmer.fixedslope <- summary(SizeLoc.P1.null.lmer.fixedslope) # summary model
+
+### main effect of size
+SizeLoc.P1.size.lmer.fixedslope <- lmer(P1~bin+(1|participant),data=data.EEG.trial.SizeLoc) # model
+summary.SizeLoc.P1.size.lmer.fixedslope <- summary(SizeLoc.P1.size.lmer.fixedslope) # summary model
+pvalue.SizeLoc.P1.size.lmer.fixedslope <- Anova(SizeLoc.P1.size.lmer.fixedslope) # calculate p-values
+# contrasts
+SizeLoc.P1.size.lmer.fixedslope.contr <- lsmeans(SizeLoc.P1.size.lmer.fixedslope,pairwise~bin,adjust="tukey")
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+SizeLoc.P1.lmer.fixedslope.BIC <- BIC(SizeLoc.P1.null.lmer.fixedslope,SizeLoc.P1.size.lmer.fixedslope)
+
+# summary
+compare.SizeLoc.P1.lmer.fixedslope <- data.frame(model=c("null","size"),BIC=SizeLoc.P1.lmer.fixedslope.BIC$BIC)
+compare.SizeLoc.P1.lmer.fixedslope <- compare.SizeLoc.P1.lmer.fixedslope[with(compare.SizeLoc.P1.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.SizeLoc.P1.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.SizeLoc.P1.lmer.fixedslope[1,1]`.   
+
+<center> <h1>*N1*</h1> </center>
+
+```{r sizeloc_N1_graph}
+# summarize data
+summary.data.EEG.trial.SizeLoc <- summarySEwithin(data.EEG.trial.SizeLoc,"N1",withinvars="bin",idvar="participant")
+summary.data.EEG.trial.SizeLoc
+
+# N1 graph
+pirateplot(formula=N1~bin, # dependent~independent variables
+           data=data.EEG.trial.SizeLoc, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+```{r sizeloc_N1_models}
+### null model
+SizeLoc.N1.null.lmer.fixedslope <- lmer(N1~1+(1|participant),data=data.EEG.trial.SizeLoc) # model
+summary.SizeLoc.N1.null.lmer.fixedslope <- summary(SizeLoc.N1.null.lmer.fixedslope) # summary model
+
+### main effect of size
+SizeLoc.N1.size.lmer.fixedslope <- lmer(N1~bin+(1|participant),data=data.EEG.trial.SizeLoc) # model
+summary.SizeLoc.N1.size.lmer.fixedslope <- summary(SizeLoc.N1.size.lmer.fixedslope) # summary model
+pvalue.SizeLoc.N1.size.lmer.fixedslope <- Anova(SizeLoc.N1.size.lmer.fixedslope) # calculate p-values
+# contrasts
+SizeLoc.N1.size.lmer.fixedslope.contr <- lsmeans(SizeLoc.N1.size.lmer.fixedslope,pairwise~bin,adjust="tukey")
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+SizeLoc.N1.lmer.fixedslope.BIC <- BIC(SizeLoc.N1.null.lmer.fixedslope,SizeLoc.N1.size.lmer.fixedslope)
+
+# summary
+compare.SizeLoc.N1.lmer.fixedslope <- data.frame(model=c("null","size"),BIC=SizeLoc.N1.lmer.fixedslope.BIC$BIC)
+compare.SizeLoc.N1.lmer.fixedslope <- compare.SizeLoc.N1.lmer.fixedslope[with(compare.SizeLoc.N1.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.SizeLoc.N1.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.SizeLoc.N1.lmer.fixedslope[1,1]`.   
+
+<center> <h1>*EPN*</h1> </center>
+
+```{r sizeloc_EPN_graph}
+# summarize data
+summary.data.EEG.trial.SizeLoc <- summarySEwithin(data.EEG.trial.SizeLoc,"EPN",withinvars="bin",idvar="participant")
+summary.data.EEG.trial.SizeLoc
+
+# EPN graph
+pirateplot(formula=EPN~bin, # dependent~independent variables
+           data=data.EEG.trial.SizeLoc, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+```{r sizeloc_EPN_models}
+### null model
+SizeLoc.EPN.null.lmer.fixedslope <- lmer(EPN~1+(1|participant),data=data.EEG.trial.SizeLoc) # model
+summary.SizeLoc.EPN.null.lmer.fixedslope <- summary(SizeLoc.EPN.null.lmer.fixedslope) # summary model
+
+### main effect of size
+SizeLoc.EPN.size.lmer.fixedslope <- lmer(EPN~bin+(1|participant),data=data.EEG.trial.SizeLoc) # model
+summary.SizeLoc.EPN.size.lmer.fixedslope <- summary(SizeLoc.EPN.size.lmer.fixedslope) # summary model
+pvalue.SizeLoc.EPN.size.lmer.fixedslope <- Anova(SizeLoc.EPN.size.lmer.fixedslope) # calculate p-values
+# contrasts
+SizeLoc.EPN.size.lmer.fixedslope.contr <- lsmeans(SizeLoc.EPN.size.lmer.fixedslope,pairwise~bin,adjust="tukey")
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+SizeLoc.EPN.lmer.fixedslope.BIC <- BIC(SizeLoc.EPN.null.lmer.fixedslope,SizeLoc.EPN.size.lmer.fixedslope)
+
+# summary
+compare.SizeLoc.EPN.lmer.fixedslope <- data.frame(model=c("null","size"),BIC=SizeLoc.EPN.lmer.fixedslope.BIC$BIC)
+compare.SizeLoc.EPN.lmer.fixedslope <- compare.SizeLoc.EPN.lmer.fixedslope[with(compare.SizeLoc.EPN.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.SizeLoc.EPN.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.SizeLoc.EPN.lmer.fixedslope[1,1]`.   
+
+<center> <h1>*LPP*</h1> </center>
+
+```{r sizeloc_LPP_graph}
+# summarize data
+summary.data.EEG.trial.SizeLoc <- summarySEwithin(data.EEG.trial.SizeLoc,"LPP",withinvars="bin",idvar="participant")
+summary.data.EEG.trial.SizeLoc
+
+# LPP graph
+pirateplot(formula=LPP~bin, # dependent~independent variables
+           data=data.EEG.trial.SizeLoc, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+We will compare the model with the main effect of size vs. the null model.   
+
+```{r sizeloc_LPP_models}
+### null model
+SizeLoc.LPP.null.lmer.fixedslope <- lmer(LPP~1+(1|participant),data=data.EEG.trial.SizeLoc) # model
+summary.SizeLoc.LPP.null.lmer.fixedslope <- summary(SizeLoc.LPP.null.lmer.fixedslope) # summary model
+
+### main effect of size
+SizeLoc.LPP.size.lmer.fixedslope <- lmer(LPP~bin+(1|participant),data=data.EEG.trial.SizeLoc) # model
+summary.SizeLoc.LPP.size.lmer.fixedslope <- summary(SizeLoc.LPP.size.lmer.fixedslope) # summary model
+pvalue.SizeLoc.LPP.size.lmer.fixedslope <- Anova(SizeLoc.LPP.size.lmer.fixedslope) # calculate p-values
+# contrasts
+SizeLoc.LPP.size.lmer.fixedslope.contr <- lsmeans(SizeLoc.LPP.size.lmer.fixedslope,pairwise~bin,adjust="tukey")
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+SizeLoc.LPP.lmer.fixedslope.BIC <- BIC(SizeLoc.LPP.null.lmer.fixedslope,SizeLoc.LPP.size.lmer.fixedslope)
+
+# summary
+compare.SizeLoc.LPP.lmer.fixedslope <- data.frame(model=c("null","size"),BIC=SizeLoc.LPP.lmer.fixedslope.BIC$BIC)
+compare.SizeLoc.LPP.lmer.fixedslope <- compare.SizeLoc.LPP.lmer.fixedslope[with(compare.SizeLoc.LPP.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.SizeLoc.LPP.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.SizeLoc.LPP.lmer.fixedslope[1,1]`.   
+
+<center> <h1>**CONTRAST LOCALIZER**</h1> </center>   
+
+```{r contloc_data}
+data.EEG.trial.ContLoc <- data.EEG.trial.all[data.EEG.trial.all$bin %in% c(12:14),] # subset trials contrast localizer
+
+data.EEG.trial.ContLoc$bin <- revalue(factor(data.EEG.trial.ContLoc$bin),c("12"="LowCon","13"="MidCon","14"="HighCon")) # recode bin variable
+
+data.EEG.trial.ContLoc <- within(data.EEG.trial.ContLoc,bin<-relevel(bin,ref="MidCon")) # reference contrast to mid
+```
+
+```{r contloc_normality}
+# assess normality
+ERPcomp <- factor(c("P1","N1","EPN","LPP")) # ERP components
+
+for(i in levels(ERPcomp)) { # loop through components
+  for(j in levels(data.EEG.trial.ContLoc$bin)) { # loop through conditions
+    tempdata <- data.EEG.trial.ContLoc[data.EEG.trial.ContLoc$bin==j,i] # subset current condition and ERP
+    
+    jpeg(filename=paste(wd,"graphs/ContLoc/",i,"/",j,".jpg",sep=""),width=480,height=480,units="px",quality=100) # save as jpeg
+    plotdist(tempdata,histo=TRUE,demp=TRUE) # empirical density and cumulative distribution
+    dev.off()
+  }
+}
+```
+
+Density plots (not shown in the output) suggest that the normal distribution is a parsimonious approximate description of the data. Therefore, linear mixed-effects models are appropriate (see above).   
+
+<center> <h1>*P1*</h1> </center>
+
+```{r contloc_P1_graph}
+# summarize data
+summary.data.EEG.trial.ContLoc <- summarySEwithin(data.EEG.trial.ContLoc,"P1",withinvars="bin",idvar="participant")
+summary.data.EEG.trial.ContLoc
+
+# P1 graph
+pirateplot(formula=P1~bin, # dependent~independent variables
+           data=data.EEG.trial.ContLoc, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+We will compare the model with the main effect of contrast vs. the null model.   
+
+```{r contloc_P1_models}
+### null model
+ContLoc.P1.null.lmer.fixedslope <- lmer(P1~1+(1|participant),data=data.EEG.trial.ContLoc) # model
+summary.ContLoc.P1.null.lmer.fixedslope <- summary(ContLoc.P1.null.lmer.fixedslope) # summary model
+
+### main effect of size
+ContLoc.P1.size.lmer.fixedslope <- lmer(P1~bin+(1|participant),data=data.EEG.trial.ContLoc) # model
+summary.ContLoc.P1.size.lmer.fixedslope <- summary(ContLoc.P1.size.lmer.fixedslope) # summary model
+pvalue.ContLoc.P1.size.lmer.fixedslope <- Anova(ContLoc.P1.size.lmer.fixedslope) # calculate p-values
+# contrasts
+ContLoc.P1.size.lmer.fixedslope.contr <- lsmeans(ContLoc.P1.size.lmer.fixedslope,pairwise~bin,adjust="tukey")
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+ContLoc.P1.lmer.fixedslope.BIC <- BIC(ContLoc.P1.null.lmer.fixedslope,ContLoc.P1.size.lmer.fixedslope)
+
+# summary
+compare.ContLoc.P1.lmer.fixedslope <- data.frame(model=c("null","contrast"),BIC=ContLoc.P1.lmer.fixedslope.BIC$BIC)
+compare.ContLoc.P1.lmer.fixedslope <- compare.ContLoc.P1.lmer.fixedslope[with(compare.ContLoc.P1.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.ContLoc.P1.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.ContLoc.P1.lmer.fixedslope[1,1]`.   
+
+<center> <h1>*N1*</h1> </center>
+
+```{r contloc_N1_graph}
+# summarize data
+summary.data.EEG.trial.ContLoc <- summarySEwithin(data.EEG.trial.ContLoc,"N1",withinvars="bin",idvar="participant")
+summary.data.EEG.trial.ContLoc
+
+# N1 graph
+pirateplot(formula=N1~bin, # dependent~independent variables
+           data=data.EEG.trial.ContLoc, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+```{r contloc_N1_models}
+### null model
+ContLoc.N1.null.lmer.fixedslope <- lmer(N1~1+(1|participant),data=data.EEG.trial.ContLoc) # model
+summary.ContLoc.N1.null.lmer.fixedslope <- summary(ContLoc.N1.null.lmer.fixedslope) # summary model
+
+### main effect of size
+ContLoc.N1.size.lmer.fixedslope <- lmer(N1~bin+(1|participant),data=data.EEG.trial.ContLoc) # model
+summary.ContLoc.N1.size.lmer.fixedslope <- summary(ContLoc.N1.size.lmer.fixedslope) # summary model
+pvalue.ContLoc.N1.size.lmer.fixedslope <- Anova(ContLoc.N1.size.lmer.fixedslope) # calculate p-values
+# contrasts
+ContLoc.N1.size.lmer.fixedslope.contr <- lsmeans(ContLoc.N1.size.lmer.fixedslope,pairwise~bin,adjust="tukey")
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+ContLoc.N1.lmer.fixedslope.BIC <- BIC(ContLoc.N1.null.lmer.fixedslope,ContLoc.N1.size.lmer.fixedslope)
+
+# summary
+compare.ContLoc.N1.lmer.fixedslope <- data.frame(model=c("null","contrast"),BIC=ContLoc.N1.lmer.fixedslope.BIC$BIC)
+compare.ContLoc.N1.lmer.fixedslope <- compare.ContLoc.N1.lmer.fixedslope[with(compare.ContLoc.N1.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.ContLoc.N1.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.ContLoc.N1.lmer.fixedslope[1,1]`.   
+
+<center> <h1>*EPN*</h1> </center>
+
+```{r contloc_EPN_graph}
+# summarize data
+summary.data.EEG.trial.ContLoc <- summarySEwithin(data.EEG.trial.ContLoc,"EPN",withinvars="bin",idvar="participant")
+summary.data.EEG.trial.ContLoc
+
+# EPN graph
+pirateplot(formula=EPN~bin, # dependent~independent variables
+           data=data.EEG.trial.ContLoc, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+```{r contloc_EPN_models}
+### null model
+ContLoc.EPN.null.lmer.fixedslope <- lmer(EPN~1+(1|participant),data=data.EEG.trial.ContLoc) # model
+summary.ContLoc.EPN.null.lmer.fixedslope <- summary(ContLoc.EPN.null.lmer.fixedslope) # summary model
+
+### main effect of size
+ContLoc.EPN.size.lmer.fixedslope <- lmer(EPN~bin+(1|participant),data=data.EEG.trial.ContLoc) # model
+summary.ContLoc.EPN.size.lmer.fixedslope <- summary(ContLoc.EPN.size.lmer.fixedslope) # summary model
+pvalue.ContLoc.EPN.size.lmer.fixedslope <- Anova(ContLoc.EPN.size.lmer.fixedslope) # calculate p-values
+# contrasts
+ContLoc.EPN.size.lmer.fixedslope.contr <- lsmeans(ContLoc.EPN.size.lmer.fixedslope,pairwise~bin,adjust="tukey")
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+ContLoc.EPN.lmer.fixedslope.BIC <- BIC(ContLoc.EPN.null.lmer.fixedslope,ContLoc.EPN.size.lmer.fixedslope)
+
+# summary
+compare.ContLoc.EPN.lmer.fixedslope <- data.frame(model=c("null","contrast"),BIC=ContLoc.EPN.lmer.fixedslope.BIC$BIC)
+compare.ContLoc.EPN.lmer.fixedslope <- compare.ContLoc.EPN.lmer.fixedslope[with(compare.ContLoc.EPN.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.ContLoc.EPN.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.ContLoc.EPN.lmer.fixedslope[1,1]`.   
+
+<center> <h1>*LPP*</h1> </center>
+
+```{r contloc_LPP_graph}
+# summarize data
+summary.data.EEG.trial.ContLoc <- summarySEwithin(data.EEG.trial.ContLoc,"LPP",withinvars="bin",idvar="participant")
+summary.data.EEG.trial.ContLoc
+
+# LPP graph
+pirateplot(formula=LPP~bin, # dependent~independent variables
+           data=data.EEG.trial.ContLoc, # data frame
+           main="", # main title
+           xlim=NULL, # x-axis: limits
+           xlab="",  # x-axis: label
+           ylim=c(-20,20), # y-axis: limits
+           ylab=expression(paste("amplitude (",mu,"V)")), # y-axis: label
+           inf.method="ci", # type of inference: 95% confidence intervals
+           pal="xmen") # color palette [see piratepal(palette="all")]
+```  
+
+```{r contloc_LPP_models}
+### null model
+ContLoc.LPP.null.lmer.fixedslope <- lmer(LPP~1+(1|participant),data=data.EEG.trial.ContLoc) # model
+summary.ContLoc.LPP.null.lmer.fixedslope <- summary(ContLoc.LPP.null.lmer.fixedslope) # summary model
+
+### main effect of size
+ContLoc.LPP.size.lmer.fixedslope <- lmer(LPP~bin+(1|participant),data=data.EEG.trial.ContLoc) # model
+summary.ContLoc.LPP.size.lmer.fixedslope <- summary(ContLoc.LPP.size.lmer.fixedslope) # summary model
+pvalue.ContLoc.LPP.size.lmer.fixedslope <- Anova(ContLoc.LPP.size.lmer.fixedslope) # calculate p-values
+# contrasts
+ContLoc.LPP.size.lmer.fixedslope.contr <- lsmeans(ContLoc.LPP.size.lmer.fixedslope,pairwise~bin,adjust="tukey")
+
+### model comparison via Bayesian Infomation Criterion (BIC)
+ContLoc.LPP.lmer.fixedslope.BIC <- BIC(ContLoc.LPP.null.lmer.fixedslope,ContLoc.LPP.size.lmer.fixedslope)
+
+# summary
+compare.ContLoc.LPP.lmer.fixedslope <- data.frame(model=c("null","contrast"),BIC=ContLoc.LPP.lmer.fixedslope.BIC$BIC)
+compare.ContLoc.LPP.lmer.fixedslope <- compare.ContLoc.LPP.lmer.fixedslope[with(compare.ContLoc.LPP.lmer.fixedslope,order(BIC)),] # sort according to BIC (in ascending order)
+compare.ContLoc.LPP.lmer.fixedslope
+```
+   
+The model to prefer should be `r compare.ContLoc.LPP.lmer.fixedslope[1,1]`.   
+
+

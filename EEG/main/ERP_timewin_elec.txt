@@ -1,0 +1,80 @@
+SELECTED VIA MASS UNIVARIATE:
+P1
+time window (ms): 66.4063 - 132.8125
+electrode (10/20): Iz  P9  P10 PO7 PO8 P7  O2  P6  P8  TP7 P5  PO4 TP8 P4  CP6
+electrode (ABCD): A28 A24 B29 A25 B30 A23 B32 B27 B28 A16 A22 B31 B21 B26 B22
+electrode (index): 28  24  61  25  62  23  64  59  60  16  22  63  53  58  54
+
+N1
+time window (ms): 164.0625 - 238.2813
+electrode (10/20): CP5 TP7 CP6 TP8 P6  P8  P10 T7  P9  T8
+electrode (ABCD): A17 A16 B22 B21 B27 B28 B29 A15 A24 B20
+electrode (index): 17  16  54  53  59  60  61  15  24  52
+
+EPN
+time window (ms): 242.1875 - 386.7188
+electrode (10/20): CP3 P3  P4  P1  P2  P6  PO4 CP6 CP4 PO3 Pz  CP5 POz P8  PO8 CP1
+electrode (ABCD): A18 A21 B26 A20 B25 B27 B31 B22 B23 A26 A31 A17 A30 B28 B30 A19
+electrode (index): 18  21  58  20  57  59  63  54  55  26  31  17  30  60  62  19
+
+LPP
+time window (ms): 402.3438 - 683.5938
+electrode (10/20): P5  P3  PO3 P1  Pz  POz P2  P4  PO4 P6  PO8 CP6 P8  CP5 TP8 CP3 CP4 CP1 CP2 CPz C5  C3  C4
+electrode (ABCD): A22 A21 A26 A20 A31 A30 B25 B26 B31 B27 B30 B22 B28 A17 B21 A18 B23 A19 B24 A32 A14 A13 B18
+electrode (index): 22  21  26  20  31  30  57  58  63  59  62  54  60  17  53  18  55  19  56  32  14  13  50
+
+##############################################################################################################
+
+SELECTED VIA VISUAL INSPECTION OF COLLAPSED LOCALIZER:
+P1
+time window (ms): 66 - 148
+electrode (10/20): Iz  P9  P10 PO7 PO8 P7  O2  P6  P8  TP7 P5  PO4 TP8 P4  CP6
+electrode (ABCD): A28 A24 B29 A25 B30 A23 B32 B27 B28 A16 A22 B31 B21 B26 B22
+electrode (index): 28  24  61  25  62  23  64  59  60  16  22  63  53  58  54
+
+N1
+time window (ms): 150 - 260
+electrode (10/20): CP5 TP7 CP6 TP8 P6  P8  P10 T7  P9  T8
+electrode (ABCD): A17 A16 B22 B21 B27 B28 B29 A15 A24 B20
+electrode (index): 17  16  54  53  59  60  61  15  24  52
+
+EPN
+time window (ms): 280 - 402
+electrode (10/20): CP5 TP7 CP6 TP8 P6  P8  P10 T7  P9  T8
+electrode (ABCD): A17 A16 B22 B21 B27 B28 B29 A15 A24 B20
+electrode (index): 17  16  54  53  59  60  61  15  24  52
+
+LPP
+time window (ms): 402 - 1000
+electrode (10/20): P5  P3  PO3 P1  Pz  POz P2  P4  PO4 P6  PO8 CP6 P8  CP5 TP8 CP3 CP4 CP1 CP2 CPz C5  C3  C4
+electrode (ABCD): A22 A21 A26 A20 A31 A30 B25 B26 B31 B27 B30 B22 B28 A17 B21 A18 B23 A19 B24 A32 A14 A13 B18
+electrode (index): 22  21  26  20  31  30  57  58  63  59  62  54  60  17  53  18  55  19  56  32  14  13  50
+
+##############################################################################################################
+
+VISUAL INSPECTION BY SEBASTIAN:
+P1
+time window (ms): 82 - 200
+electrode (10/20):  P9  P7 PO7 O1  O2  PO8 P8  P10
+electrode (ABCD):  A24 A23 A25 A27 B32 B30 B28 B29
+electrode (index):  24  23  25  27  64  62  60  61
+
+N1
+time window (ms): 142 - 324
+electrode (10/20):  P9  P7 PO7 O1  O2  PO8 P8  P10
+electrode (ABCD):  A24 A23 A25 A27 B32 B30 B28 B29
+electrode (index):  24  23  25  27  64  62  60  61
+
+EPN
+time window (ms):  300 - 464
+electrode (10/20): P7  PO7  P5 PO3  O1  O2 PO4  P6 PO8  P8
+electrode (ABCD):  A23 A25 A22 A26 A27 B32 B31 B27 B30 B28
+electrode (index):  23  25  22  26  27  64  63  59  62  60
+
+LPP
+time window (ms):  440 - 680
+electrode (10/20):  C1  Cz  C2 CP1 CPz CP2  P1  Pz  P2
+electrode (ABCD):  A12 B16 B17 A19 A32 B24 A20 A31 B25
+electrode (index):  12  48  49  19  32  56  20  31  57
+
+##############################################################################################################
