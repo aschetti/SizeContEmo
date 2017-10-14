@@ -31,7 +31,6 @@ setwd(wd) # set work directory
 pacman::p_load("knitr", # dynamic report generation
                "reshape2", # to reshape the data               
                "tidyverse", # install the following packages: ggplot2, tibble, tidyr, readr, purrr, dplyr
-               "viridis", # more color maps
                "ggthemes", # more themes for ggplot2
                "Rmisc", # for advanced summary functions
                "akima", # interpolation of irregularly and regularly spaced data
@@ -45,38 +44,12 @@ pacman::p_load("knitr", # dynamic report generation
 # setup output
 options(width=120,scipen=999,digits=3) # change output width (for better printing), disable scientific notation (default: scipen=0), constrain output to 4 decimals
 opts_chunk$set(warning=FALSE,message=FALSE,fig.width=10,fig.height=6) # for each chunk, display the output but not the R code (echo=FALSE), no package warnings (message=FALSE), no package messages (message=FALSE), width and height of all figures
+
+# ggplot2 custom color palette for waveform plots
+waveforms.palette <- c("#000000","#E69F00","#56B4E9","#009E73","#FFE259","#0072B2","#D55E00","#CC79A7","#999999")
 ```
 
 <center> <h1>*GRAPHS*</h1> </center>
-
-```{r graph_grandavg}
-grand.avg.localizer <- read.csv(paste0(expphase,"_grandEEG_localizer.csv"),header=TRUE,check.names=FALSE) # load data (check.names=FALSE eliminates the "X" at the beginning of each timepoint)
-
-grand.avg.localizer <- grand.avg.localizer %>% # data frame
-  select(-bin) %>% # drop bin column
-  # convert to long format
-  gather(key=timepoint, # name of new column
-         value=amplitude, # name of new column
-         convert=TRUE, # convert time points to numeric
-         -c(participant,electrode)) # keep participants and electrodes as columns
-
-# summarized data from each time point
-# within-subject 95% CIs, although calculated, will not be used (to improve visualization)
-grand.avg.localizer.pointsummary <- grand.avg.localizer %>% # data frame
-  summarySEwithin(data=.,measurevar="amplitude",withinvars=c("electrode","timepoint"),idvar="participant") # summary
-grand.avg.localizer.pointsummary$timepoint <- as.numeric(levels(grand.avg.localizer.pointsummary$timepoint))[grand.avg.localizer.pointsummary$timepoint] # convert time points to number
-
-# plot
-ggplot(grand.avg.localizer.pointsummary,aes(x=timepoint,y=amplitude,group=electrode,color=electrode)) + # basic plot
-  geom_line(aes(color=electrode),size=1.2) + # one line per electrode
-  scale_color_viridis(discrete=TRUE,option="magma",alpha=.7) + # color scale
-  labs(title="grand average collapsed localizer (all electrodes)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
-  scale_x_continuous(breaks=seq(-200,1000,100)) + # x-axis: tick marks
-  scale_y_reverse(breaks=seq(-3,3,1),limits=c(3,-3)) + # y-axis: tick marks
-  geom_vline(xintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # vertical reference line
-  geom_hline(yintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # horizontal reference line
-  theme_pander(base_size=20,pc="white",lp="none") # custom theme
-```
 
 ```{r prepare_topos}
 ## plot electrode coordinates
@@ -124,73 +97,148 @@ nose <- data.frame(x=c(-0.075,0,.075),y=c(.495,.575,.495))
 jet.colors <- colorRampPalette(c("#00007F","blue","#007FFF","cyan","#7FFF7F","yellow","#FF7F00","red","#7F0000")) # jet color map
 gridRes <- 268 # number of points for each grid dimension, corresponding to the resolution/smoothness of the interpolation
 maskRing <- circleFun(diameter=1.42) # create a circle around the outside of the plotting area to mask the jagged edges of the interpolation
+
+grand.avg.topos <- read.csv(paste0(expphase,"_topoEEG.csv"),header=TRUE,check.names=FALSE) # load data (check.names=FALSE eliminates the "X" at the beginning of each timepoint)
+
+grand.avg.topos <- grand.avg.topos %>% # data frame
+  # convert to long format
+  gather(key=component, # name of new column
+         value=amplitude, # value of new column
+         convert=TRUE, # convert time points to numeric
+         -c(participant,electrode)) # keep participants, electrode cluster, and conditions as columns
 ```
 
-```{r load_data_grand_avg_comps}
-comps.grand.avg.allbins <- read.csv(paste0(expphase,"_comp_timecourse.csv"),header=TRUE,check.names=FALSE) # load data (check.names=FALSE eliminates the "X" at the beginning of each timepoint)
-comps.grand.avg.allbins <- melt(comps.grand.avg.allbins,id.vars=c("component","bin"),variable.name="timepoint",value.name="amplitude") # transform to long format
-comps.grand.avg.allbins$timepoint <- as.numeric(levels(comps.grand.avg.allbins$timepoint))[comps.grand.avg.allbins$timepoint] # convert time points to number
-levels(comps.grand.avg.allbins$bin) <- c("all","negativeLargeBright","negativeLargeDark","negativeSmallBright","negativeSmallDark","neutralLargeBright","neutralLargeDark","neutralSmallBright","neutralSmallDark") # eliminate annoying space in some level names
-comps.grand.avg.allbins$size <- revalue(factor(comps.grand.avg.allbins$bin),c("all"="all","negativeLargeBright"="large","negativeLargeDark"="large","negativeSmallBright"="small","negativeSmallDark"="small","neutralLargeBright"="large","neutralLargeDark"="large","neutralSmallBright"="small","neutralSmallDark"="small")) # main effect of size
-comps.grand.avg.allbins$cont <- revalue(factor(comps.grand.avg.allbins$bin),c("all"="all","negativeLargeBright"="bright","negativeLargeDark"="dark","negativeSmallBright"="bright","negativeSmallDark"="dark","neutralLargeBright"="bright","neutralLargeDark"="dark","neutralSmallBright"="bright","neutralSmallDark"="dark")) # main effect of contrast
-comps.grand.avg.allbins$emo <- revalue(factor(comps.grand.avg.allbins$bin),c("all"="all","negativeLargeBright"="negative","negativeLargeDark"="negative","negativeSmallBright"="negative","negativeSmallDark"="negative","neutralLargeBright"="neutral","neutralLargeDark"="neutral","neutralSmallBright"="neutral","neutralSmallDark"="neutral")) # main effect of emotion
+```{r graph_grandavg}
+grand.avg.localizer <- read.csv(paste0(expphase,"_grandEEG_localizer.csv"),header=TRUE,check.names=FALSE) # load data (check.names=FALSE eliminates the "X" at the beginning of each timepoint)
+
+grand.avg.localizer <- grand.avg.localizer %>% # data frame
+  select(-condition) %>% # drop condition column
+  # convert to long format
+  gather(key=timepoint, # name of new column
+         value=amplitude, # value of new column
+         convert=TRUE, # convert time points to numeric
+         -c(participant,electrode)) # keep participants and electrodes as columns
+
+# summarized data from each time point
+# within-subject 95% CIs, although calculated, will not be used (to improve visualization)
+grand.avg.localizer.pointsummary <- grand.avg.localizer %>% # data frame
+  summarySEwithin(data=.,measurevar="amplitude",withinvars=c("electrode","timepoint"),idvar="participant") # summary
+grand.avg.localizer.pointsummary$timepoint <- as.numeric(levels(grand.avg.localizer.pointsummary$timepoint))[grand.avg.localizer.pointsummary$timepoint] # convert time points to number
+
+# plot
+ggplot(grand.avg.localizer.pointsummary,aes(x=timepoint,y=amplitude,group=electrode)) + # basic plot
+  geom_line(size=1.2,color="#494847",alpha=.8) + # one line per electrode
+  labs(title="grand average collapsed localizer (all electrodes)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
+  scale_x_continuous(breaks=seq(-200,1000,100)) + # x-axis: tick marks
+  scale_y_reverse(breaks=seq(-3,3,1),limits=c(3,-3)) + # y-axis: tick marks
+  geom_vline(xintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # vertical reference line
+  geom_hline(yintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # horizontal reference line
+  geom_vline(xintercept=seq(from=-200,to=1000,by=100),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
+  geom_hline(yintercept=seq(from=-3,to=3,by=1),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
+  theme_pander(base_size=20,pc="white",lp="none") # custom theme
+```
+
+```{r load_data_grandavg_comps}
+grand.avg.comps <- read.csv(paste0(expphase,"_avgERP.csv"),header=TRUE,check.names=FALSE) # load data (check.names=FALSE eliminates the "X" at the beginning of each timepoint)
+
+grand.avg.comps <- grand.avg.comps %>% # data frame
+  # convert to long format
+  gather(key=timepoint, # name of new column
+         value=amplitude, # value of new column
+         convert=TRUE, # convert time points to numeric
+         -c(participant,elec_cluster,condition)) # keep participants, electrode cluster, and conditions as columns
+
+# rename levels
+levels(grand.avg.comps$condition) <- c("localizer","negative","negative minus neutral","negative large bright","negative large dark","negative small bright","negative small dark","neutral","neutral large bright","neutral large dark","neutral small bright","neutral small dark")
+# main effect of size
+grand.avg.comps$size <- revalue(factor(grand.avg.comps$condition),c("localizer"=NA,
+                                                              "negative"=NA,
+                                                              "negative minus neutral"=NA,
+                                                              "negative large bright"="large",
+                                                              "negative large dark"="large",
+                                                              "negative small bright"="small",
+                                                              "negative small dark"="small",
+                                                              "neutral"=NA,
+                                                              "neutral large bright"="large",
+                                                              "neutral large dark"="large",
+                                                              "neutral small bright"="small",
+                                                              "neutral small dark"="small")) 
+# main effect of contrast
+grand.avg.comps$cont <- revalue(factor(grand.avg.comps$condition),c("localizer"=NA,
+                                                              "negative"=NA,
+                                                              "negative minus neutral"=NA,
+                                                              "negative large bright"="bright",
+                                                              "negative large dark"="dark",
+                                                              "negative small bright"="bright",
+                                                              "negative small dark"="dark",
+                                                              "neutral"=NA,
+                                                              "neutral large bright"="bright",
+                                                              "neutral large dark"="dark",
+                                                              "neutral small bright"="bright",
+                                                              "neutral small dark"="dark")) 
+# main effect of emotion
+grand.avg.comps$emo <- revalue(factor(grand.avg.comps$condition),c("localizer"=NA,
+                                                             "negative"=NA,
+                                                             "negative minus neutral"=NA,
+                                                             "negative large bright"="negative",
+                                                             "negative large dark"="negative",
+                                                             "negative small bright"="negative",
+                                                             "negative small dark"="negative",
+                                                             "neutral"=NA,
+                                                             "neutral large bright"="neutral",
+                                                             "neutral large dark"="neutral",
+                                                             "neutral small bright"="neutral",
+                                                             "neutral small dark"="neutral"))
 ```
 
 # P1
 
-Amplitude extracted from the following electrode cluster:   
-Iz, P9, P10, PO7, PO8, P7, O2, P6, P8, TP7, P5, PO4, TP8, P4, CP6.   
+Amplitude extracted from the following electrode cluster: P7 PO7 O1 O2 PO8 P8 P10 P9.   
 
 ```{r P1_graph}
+# summarized data from each time point, including within-subject 95% CIs
+P1.grand.avg.comps.pointsummary <- grand.avg.comps %>% # data frame
+  filter(elec_cluster=="P1",condition!="negative",condition!="negative minus neutral",condition!="neutral") %>% # filter out useless conditions
+  summarySEwithin(data=.,measurevar="amplitude",withinvars=c("condition","timepoint"),idvar="participant") # summary
+P1.grand.avg.comps.pointsummary$timepoint <- as.numeric(levels(P1.grand.avg.comps.pointsummary$timepoint))[P1.grand.avg.comps.pointsummary$timepoint] # convert time points to number
+
 # plot P1
-ggplot(subset(comps.grand.avg.allbins,component=="P1" & bin!="all"),aes(timepoint,amplitude)) + # basic plot
-  geom_line(aes(color=bin),size=.8,alpha=.6) + # one line per bin
-  stat_summary(fun.y=mean,geom="line",size=3) + # mean of all bins
-  scale_colour_brewer(palette="Dark2") + # color palette
-  labs(title="P1 (66 - 133 ms)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
-  scale_x_continuous(breaks=seq(-200,1000,50),limits=c(-100,250)) + # x-axis: tick marks
-  scale_y_reverse(breaks=seq(-3,3,1),limits=c(3,-3)) + # y-axis: tick marks
-  geom_vline(xintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # vertical reference line
-  geom_hline(yintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # horizontal reference line
-  annotate("rect",xmin=66,xmax=133,ymin=-1,ymax=2.5,alpha=.2) + # highlight time window used for analysis
-  theme_pander(base_size=20,pc="white",lp=c(.2,.8)) # custom theme
-```
-
-Obvious latency differences across conditions will be explored in additional analyses.   
-
-The collapsed localizer (black line) suggests that the time window for P1 amplitude extraction could be larger. We select 66 - 148 ms.
-
-```{r P1_graph_shifted}
-ggplot(subset(comps.grand.avg.allbins,component=="P1" & bin!="all"),aes(timepoint,amplitude)) + # basic plot
-  geom_line(aes(color=bin),size=.8,alpha=.6) + # one line per bin
-  stat_summary(fun.y=mean,geom="line",size=3) + # mean of all bins
-  scale_colour_brewer(palette="Dark2") + # color palette
-  labs(title="P1 (66 - 148 ms)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
-  scale_x_continuous(breaks=seq(-200,1000,50),limits=c(-100,250)) + # x-axis: tick marks
-  scale_y_reverse(breaks=seq(-3,3,1),limits=c(3,-3)) + # y-axis: tick marks
-  geom_vline(xintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # vertical reference line
-  geom_hline(yintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # horizontal reference line
-  annotate("rect",xmin=66,xmax=148,ymin=-1,ymax=2.5,alpha=.2) + # highlight time window used for analysis
-  theme_pander(base_size=20,pc="white",lp=c(.5,.8)) # custom theme
+ggplot(filter(P1.grand.avg.comps.pointsummary,condition!="localizer"),aes(x=timepoint,y=amplitude,group=condition,color=condition)) + # basic plot
+  geom_line(aes(color=condition),size=2.5,alpha=.6) + # one line per condition
+  # geom_ribbon(data=filter(P1.grand.avg.comps.pointsummary,condition!="localizer"),aes(ymin=amplitude-ci,ymax=amplitude+ci,fill=condition),linetype="dotted",size=.1,alpha=.1) + # 95% CI for all conditions (commented out to improve visualization)
+  geom_line(data=filter(P1.grand.avg.comps.pointsummary,condition=="localizer"),size=5) + # add thick black line for localizer
+  geom_ribbon(data=filter(P1.grand.avg.comps.pointsummary,condition=="localizer"),aes(ymin=amplitude-ci,ymax=amplitude+ci),linetype="dotted",size=.1,alpha=.3) + # localizer 95% CI
+  scale_color_manual(values=waveforms.palette) + # line colors
+  scale_fill_manual(values=waveforms.palette) + # ribbon colors
+  guides(fill=FALSE,group=FALSE) + # remove unnecessary legends
+  labs(title="P1 (66-148 ms)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
+  scale_x_continuous(breaks=seq(-200,1000,25),limits=c(-100,250)) + # x-axis: tick marks
+  scale_y_reverse(breaks=seq(-3,3,1),limits=c(4,-4)) + # y-axis: tick marks
+  geom_vline(xintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # vertical reference line
+  geom_hline(yintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # horizontal reference line
+  geom_vline(xintercept=seq(from=-200,to=250,by=25),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
+  geom_hline(yintercept=seq(from=-3,to=3,by=1),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
+  annotate("rect",xmin=66,xmax=148,ymin=-.5,ymax=3,fill="#e08328",alpha=.2) + # highlight time window used for analysis
+  theme_pander(base_size=20,pc="white",lp=c(.15,.8)) # custom theme
 ```
 
 ```{r P1_topo}
-# average across selected time points
-P1.topos.grand.avg.allbins <- summarySEwithin(subset(grand.avg.allbins,timepoint >= 65 & timepoint <= 148),"amplitude",withinvars="electrode")
-# electrode locations and amplitudes in the same data frame
-P1.topos.grand.avg.allbins <- cbind(electrodeLocs,P1.topos.grand.avg.allbins[,"amplitude"])
-names(P1.topos.grand.avg.allbins)[8] <- "amplitude" # change variable name
+P1.topo <- grand.avg.topos %>% # data frame
+  filter(component=="P1") %>% # select only component of interest 
+  summarySEwithin(data=.,measurevar="amplitude",withinvars="electrode",idvar="participant") # summary
+P1.topo <- cbind(electrodeLocs,P1.topo[,"amplitude"]) # electrode locations and amplitudes in the same data frame
+names(P1.topo)[8] <- "amplitude" # change variable name
 
 # plot topography
 amplim <- c(-.5,.5) # min/max amplitude limit
 contour.binwidth <- .1 # map contour
 
-splineSmooth <- gam(amplitude~s(x,y,bs='ts'),data=P1.topos.grand.avg.allbins)
-GAMtopo <- data.frame(expand.grid(x=seq(min(P1.topos.grand.avg.allbins$x)*2,
-                                        max(P1.topos.grand.avg.allbins$x)*2,
+splineSmooth <- gam(amplitude~s(x,y,bs='ts'),data=P1.topo)
+GAMtopo <- data.frame(expand.grid(x=seq(min(P1.topo$x)*2,
+                                        max(P1.topo$x)*2,
                                         length=gridRes),
-                                  y=seq(min(P1.topos.grand.avg.allbins$y)*2,
-                                        max(P1.topos.grand.avg.allbins$y)*2,
+                                  y=seq(min(P1.topo$y)*2,
+                                        max(P1.topo$y)*2,
                                         length=gridRes)))
 GAMtopo$amplitude <-  predict(splineSmooth,GAMtopo,type="response")
 GAMtopo$incircle <- (GAMtopo$x)^2+(GAMtopo$y)^2<.7^2
@@ -199,18 +247,30 @@ ggplot(GAMtopo[GAMtopo$incircle,],aes(x,y,fill=amplitude)) +
   geom_raster() +
   stat_contour(aes(z=amplitude),binwidth=contour.binwidth) +
   theme_topo() +
-  scale_fill_gradientn(colours=jet.colors(10),
+  scale_fill_gradientn(colors=jet.colors(10),
                        limits=amplim,
-                       guide="colourbar",
+                       guide="colorbar",
                        oob=squish) +
-  geom_path(data=maskRing,aes(x,y,z=NULL,fill=NULL),colour="white",size=6) +
-  geom_point(data=P1.topos.grand.avg.allbins,
+  geom_path(data=maskRing,aes(x,y,z=NULL,fill=NULL),color="white",size=6) +
+  geom_point(data=P1.topo,
              aes(x,y,fill=NULL)) +
   geom_path(data=nose,aes(x,y,z=NULL,fill=NULL),size=1.5) +
   geom_path(data=headShape,aes(x,y,z=NULL,fill=NULL),size=1.5) +
   ggtitle("P1 (66 - 148 ms)") + 
   coord_quickmap()
 ```
+
+
+###################################################################################################################
+# FROM HERE
+###################################################################################################################
+
+
+
+
+
+
+
 
 # N1
 
