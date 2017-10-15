@@ -105,8 +105,7 @@ grand.avg.topos <- grand.avg.topos %>% # data frame
   # convert to long format
   gather(key=component, # name of new column
          value=amplitude, # value of new column
-         convert=TRUE, # convert time points to numeric
-         -c(participant,electrode)) # keep participants, electrode cluster, and conditions as columns
+         -c(participant,bin,electrode)) # keep participants, conditions, and electrode cluster as columns
 ```
 
 ```{r graph_grandavg}
@@ -194,7 +193,7 @@ grand.avg.comps$emo <- revalue(factor(grand.avg.comps$condition),c("localizer"=N
 
 # P1
 
-Amplitude extracted from the following electrode cluster: P7 PO7 O1 O2 PO8 P8 P10 P9.   
+Amplitude extracted from the following electrode cluster: P7 P9 PO7 O1 O2 PO8 P8 P10.
 
 ```{r P1_waveforms}
 # summarized data from each time point, including within-subject 95% CIs
@@ -214,7 +213,7 @@ ggplot(filter(P1.grand.avg.comps.pointsummary,condition!="localizer"),aes(x=time
   guides(fill=FALSE,group=FALSE) + # remove unnecessary legends
   labs(title="P1 (66-148 ms)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
   scale_x_continuous(breaks=seq(-200,1000,50),limits=c(-100,250)) + # x-axis: tick marks
-  scale_y_reverse(breaks=seq(-3,3,1),limits=c(4,-4)) + # y-axis: tick marks
+  scale_y_reverse(breaks=seq(-3,3,1),limits=c(3,-3)) + # y-axis: tick marks
   geom_vline(xintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # vertical reference line
   geom_hline(yintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # horizontal reference line
   geom_vline(xintercept=seq(from=-200,to=1000,by=50),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
@@ -225,13 +224,13 @@ ggplot(filter(P1.grand.avg.comps.pointsummary,condition!="localizer"),aes(x=time
 
 ```{r P1_topo}
 P1.topo <- grand.avg.topos %>% # data frame
-  filter(component=="P1") %>% # select only component of interest 
+  filter(component=="P1",bin=="localizer") %>% # select only component and bin of interest 
   summarySEwithin(data=.,measurevar="amplitude",withinvars="electrode",idvar="participant") # summary
 P1.topo <- cbind(electrodeLocs,P1.topo[,"amplitude"]) # electrode locations and amplitudes in the same data frame
 names(P1.topo)[8] <- "amplitude" # change variable name
 
 # plot topography
-amplim <- c(-.5,.5) # min/max amplitude limit
+amplim <- c(-.7,.7) # min/max amplitude limit
 contour.binwidth <- .1 # map contour
 splineSmooth <- gam(amplitude~s(x,y,bs='ts'),data=P1.topo)
 GAMtopo <- data.frame(expand.grid(x=seq(min(P1.topo$x)*2,
@@ -262,7 +261,7 @@ ggplot(GAMtopo[GAMtopo$incircle,],aes(x,y,fill=amplitude)) +
 
 # N1
 
-Amplitude extracted from the following electrode cluster: T7 TP7 P7 PO7 T8 TP8 P8 PO8 P10 P9.
+Amplitude extracted from the following electrode cluster: TP7 P7 P9 TP8 P8 P10.
 
 ```{r N1_waveforms}
 # summarized data from each time point, including within-subject 95% CIs
@@ -282,18 +281,18 @@ ggplot(filter(N1.grand.avg.comps.pointsummary,condition!="localizer"),aes(x=time
   guides(fill=FALSE,group=FALSE) + # remove unnecessary legends
   labs(title="N1 (150-260 ms)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
   scale_x_continuous(breaks=seq(-200,1000,50),limits=c(-100,400)) + # x-axis: tick marks
-  scale_y_reverse(breaks=seq(-3,3,1),limits=c(4,-4)) + # y-axis: tick marks
+  scale_y_reverse(breaks=seq(-3,3,1),limits=c(3,-3)) + # y-axis: tick marks
   geom_vline(xintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # vertical reference line
   geom_hline(yintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # horizontal reference line
   geom_vline(xintercept=seq(from=-200,to=1000,by=50),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
   geom_hline(yintercept=seq(from=-3,to=3,by=1),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
-  annotate("rect",xmin=150,xmax=260,ymin=-2,ymax=1,fill="#e08328",alpha=.2) + # highlight time window used for analysis
+  annotate("rect",xmin=150,xmax=260,ymin=-2.5,ymax=1,fill="#e08328",alpha=.2) + # highlight time window used for analysis
   theme_pander(base_size=20,pc="white",lp=c(.15,.8)) # custom theme
 ```
 
 ```{r N1_topo}
 N1.topo <- grand.avg.topos %>% # data frame
-  filter(component=="N1") %>% # select only component of interest 
+  filter(component=="N1",bin=="localizer") %>% # select only component and bin of interest 
   summarySEwithin(data=.,measurevar="amplitude",withinvars="electrode",idvar="participant") # summary
 N1.topo <- cbind(electrodeLocs,N1.topo[,"amplitude"]) # electrode locations and amplitudes in the same data frame
 names(N1.topo)[8] <- "amplitude" # change variable name
@@ -330,214 +329,137 @@ ggplot(GAMtopo[GAMtopo$incircle,],aes(x,y,fill=amplitude)) +
 
 # EPN
 
-Amplitude extracted from the following electrode cluster:   
-CP3, P3, P4, P1, P2, P6, PO4, CP6, CP4, PO3, Pz, CP5, POz, P8, PO8, CP1.   
+Amplitude extracted from the following electrode cluster: P7 P9 PO7 PO3 O1 Oz Iz O2 PO4 PO8 P8 P10.
 
-```{r EPN_graph}
+```{r EPN_waveforms}
+# summarized data from each time point, including within-subject 95% CIs
+EPN.grand.avg.comps.pointsummary <- grand.avg.comps %>% # data frame
+  filter(elec_cluster=="EPN",condition==c("negative","neutral","negative minus neutral")) %>% # filter out useless conditions
+  summarySEwithin(data=.,measurevar="amplitude",withinvars=c("condition","timepoint"),idvar="participant") # summary
+EPN.grand.avg.comps.pointsummary$timepoint <- as.numeric(levels(EPN.grand.avg.comps.pointsummary$timepoint))[EPN.grand.avg.comps.pointsummary$timepoint] # convert time points to number
+
 # plot EPN
-ggplot(subset(comps.grand.avg.allbins,component=="EPN" & bin!="all"),aes(timepoint,amplitude)) + # basic plot
-  geom_line(aes(color=bin),size=.8,alpha=.6) + # one line per bin
-  stat_summary(fun.y=mean,geom="line",size=3) + # mean of all bins
-  scale_colour_brewer(palette="Dark2") + # color palette
-  labs(title="EPN (242 - 387 ms)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
+ggplot(filter(EPN.grand.avg.comps.pointsummary,condition!="negative minus neutral"),aes(x=timepoint,y=amplitude,group=condition,color=condition)) + # basic plot
+  geom_line(aes(color=condition),size=2.5,alpha=.6) + # one line per condition
+  geom_ribbon(data=filter(EPN.grand.avg.comps.pointsummary,condition!="negative minus neutral"),aes(ymin=amplitude-ci,ymax=amplitude+ci,fill=condition),linetype="dotted",size=.1,alpha=.1) + # 95% CI for all conditions
+  geom_line(data=filter(EPN.grand.avg.comps.pointsummary,condition=="negative minus neutral"),size=5) + # add thick black line for localizer
+  geom_ribbon(data=filter(EPN.grand.avg.comps.pointsummary,condition=="negative minus neutral"),aes(ymin=amplitude-ci,ymax=amplitude+ci),linetype="dotted",size=.1,alpha=.3) + # localizer 95% CI
+  scale_color_manual(values=c("#E69F00","#000000","#56B4E9")) + # line colors
+   scale_fill_manual(values=c("#E69F00","#000000","#56B4E9")) + # ribbon colors
+  guides(fill=FALSE,group=FALSE) + # remove unnecessary legends
+  labs(title="EPN (300-500 ms)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
   scale_x_continuous(breaks=seq(-200,1000,50),limits=c(-100,600)) + # x-axis: tick marks
   scale_y_reverse(breaks=seq(-3,3,1),limits=c(3,-3)) + # y-axis: tick marks
-  geom_vline(xintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # vertical reference line
-  geom_hline(yintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # horizontal reference line
-  annotate("rect",xmin=242,xmax=387,ymin=-.5,ymax=2,alpha=.2) + # highlight time window used for analysis
-  theme_pander(base_size=20,pc="white",lp=c(.2,.8)) # custom theme
-```
-
-Observations:   
-1. overall positive amplitude, but the EPN is better visualized as a difference wave (negative-neutral);   
-2. the electrode cluster is more parietal than expected based on previous studies;   
-3. the time window now slightly overlaps with the new N1 time window (by 260 - 242 = 18 ms).   
-
-Address point 1: Plot EPN as a difference wave (negative minus neutral).
-
-```{r EPN_graph_diffwave}
-# plot EPN (negative minus neutral)
-EPN.grand.avg.allbins <- summarySEwithin(subset(comps.grand.avg.allbins,component=="EPN" & bin!="all",select=-c(bin,size,cont)),measurevar="amplitude",withinvars=c("timepoint","emo"),idvar="component")
-EPN.grand.avg.allbins$timepoint <- as.numeric(levels(EPN.grand.avg.allbins$timepoint))[EPN.grand.avg.allbins$timepoint] # re-convert time points to number
-# plot
-ggplot(EPN.grand.avg.allbins,aes(timepoint,amplitude)) + # basic plot
-  geom_line(aes(color=emo),size=.8,alpha=.6) + # one line per emotion
-  stat_summary(fun.y=diff,geom="line",size=3) + # mean of all bins
-  scale_colour_brewer(palette="Dark2") + # color palette
-  labs(title="EPN (242 - 387 ms), neg-neut",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
-  scale_x_continuous(breaks=seq(-200,1000,50),limits=c(-100,600)) + # x-axis: tick marks
-  scale_y_reverse(breaks=seq(-3,3,1),limits=c(2,-1)) + # y-axis: tick marks
-  geom_vline(xintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # vertical reference line
-  geom_hline(yintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # horizontal reference line
-  annotate("rect",xmin=242,xmax=387,ymin=-.5,ymax=1.5,alpha=.2) + # highlight time window used for analysis
-  theme_pander(base_size=20,pc="white",lp=c(.2,.3)) # custom theme
-```
-
-Address point 2: Use electrode cluster identified for N1 component (typically done in the literature):   
-CP5, TP7, CP6, TP8, P6, P8, P10, T7, P9, T8.
-
-```{r EPN_graph_diffwave_N1_electrodes}
-# plot EPN using electrodes of N1
-EPN.N1.grand.avg.allbins <- summarySEwithin(subset(comps.grand.avg.allbins,component=="N1" & bin!="all",select=-c(bin,size,cont)),measurevar="amplitude",withinvars=c("timepoint","emo"),idvar="component")
-EPN.N1.grand.avg.allbins$timepoint <- as.numeric(levels(EPN.N1.grand.avg.allbins$timepoint))[EPN.N1.grand.avg.allbins$timepoint] # re-convert time points to number
-# plot
-ggplot(EPN.N1.grand.avg.allbins,aes(timepoint,amplitude)) + # basic plot
-  geom_line(aes(color=emo),size=.8,alpha=.6) + # one line per emotion
-  stat_summary(fun.y=diff,geom="line",size=3) + # mean of all bins
-  scale_colour_brewer(palette="Dark2") + # color palette
-  labs(title="EPN (242 - 387 ms), neg-neut, N1 electrodes",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
-  scale_x_continuous(breaks=seq(-200,1000,50),limits=c(-100,600)) + # x-axis: tick marks
-  scale_y_reverse(breaks=seq(-3,3,1),limits=c(1,-1.2)) + # y-axis: tick marks
-  geom_vline(xintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # vertical reference line
-  geom_hline(yintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # horizontal reference line
-  annotate("rect",xmin=242,xmax=387,ymin=-.5,ymax=1,alpha=.2) + # highlight time window used for analysis
-  theme_pander(base_size=20,pc="white",lp=c(.2,.8)) # custom theme
-```
-
-Address point 3: now the time window naturally changes to 280 - 402 ms.
-
-```{r EPN_graph_diffwave_N1_electrodes_shifted}
-# plot
-ggplot(EPN.N1.grand.avg.allbins,aes(timepoint,amplitude)) + # basic plot
-  geom_line(aes(color=emo),size=.8,alpha=.6) + # one line per emotion
-  stat_summary(fun.y=diff,geom="line",size=3) + # mean of all bins
-  scale_colour_brewer(palette="Dark2") + # color palette
-  labs(title="EPN (280 - 402 ms), neg-neut N1 electrodes",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
-  scale_x_continuous(breaks=seq(-200,1000,50),limits=c(-100,600)) + # x-axis: tick marks
-  scale_y_reverse(breaks=seq(-3,3,1),limits=c(1,-1.2)) + # y-axis: tick marks
-  geom_vline(xintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # vertical reference line
-  geom_hline(yintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # horizontal reference line
-  annotate("rect",xmin=280,xmax=402,ymin=-.5,ymax=1,alpha=.2) + # highlight time window used for analysis
-  theme_pander(base_size=20,pc="white",lp=c(.2,.8)) # custom theme
+  geom_vline(xintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # vertical reference line
+  geom_hline(yintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # horizontal reference line
+  geom_vline(xintercept=seq(from=-200,to=1000,by=50),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
+  geom_hline(yintercept=seq(from=-3,to=3,by=1),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
+  annotate("rect",xmin=300,xmax=500,ymin=-1,ymax=2,fill="#e08328",alpha=.2) + # highlight time window used for analysis
+  theme_pander(base_size=20,pc="white",lp=c(.15,.8)) # custom theme
 ```
 
 ```{r EPN_topo}
-
-temp <- EPN.N1.grand.avg.allbins %>%
-  select(emo,amplitude,timepoint) %>% # select columns of interest
-  spread(emo,amplitude) %>% # convert to wide format
-  mutate(diff=negative-neutral) # calculate amplitude difference difference
-              
-# average across selected time points
-EPN.topos.grand.avg.allbins <- summarySEwithin(subset(grand.avg.allbins,timepoint >= 280 & timepoint <= 402),"amplitude",withinvars="electrode")
-# electrode locations and amplitudes in the same data frame
-EPN.topos.grand.avg.allbins <- cbind(electrodeLocs,EPN.topos.grand.avg.allbins[,"amplitude"])
-names(EPN.topos.grand.avg.allbins)[8] <- "amplitude" # change variable name
-
-
-
-
-
-
-# average across selected time points
-EPN.topos.grand.avg.allbins <- summarySEwithin(subset(grand.avg.allbins,timepoint >= 280 & timepoint <= 402),"amplitude",withinvars="electrode")
-# electrode locations and amplitudes in the same data frame
-EPN.topos.grand.avg.allbins <- cbind(electrodeLocs,EPN.topos.grand.avg.allbins[,"amplitude"])
-names(EPN.topos.grand.avg.allbins)[8] <- "amplitude" # change variable name
+EPN.topo <- grand.avg.topos %>% # data frame
+  filter(component=="EPN",bin=="NegMinNeut") %>% # select only component and bin of interest 
+  summarySEwithin(data=.,measurevar="amplitude",withinvars="electrode",idvar="participant") # summary
+EPN.topo <- cbind(electrodeLocs,EPN.topo[,"amplitude"]) # electrode locations and amplitudes in the same data frame
+names(EPN.topo)[8] <- "amplitude" # change variable name
 
 # plot topography
-amplim <- c(-.5,.5) # min/max amplitude limit
+amplim <- c(-.2,.2) # min/max amplitude limit
 contour.binwidth <- .1 # map contour
-
-splineSmooth <- gam(amplitude~s(x,y,bs='ts'),data=EPN.topos.grand.avg.allbins)
-GAMtopo <- data.frame(expand.grid(x=seq(min(EPN.topos.grand.avg.allbins$x)*2,
-                                        max(EPN.topos.grand.avg.allbins$x)*2,
+splineSmooth <- gam(amplitude~s(x,y,bs='ts'),data=EPN.topo)
+GAMtopo <- data.frame(expand.grid(x=seq(min(EPN.topo$x)*2,
+                                        max(EPN.topo$x)*2,
                                         length=gridRes),
-                                  y=seq(min(EPN.topos.grand.avg.allbins$y)*2,
-                                        max(EPN.topos.grand.avg.allbins$y)*2,
+                                  y=seq(min(EPN.topo$y)*2,
+                                        max(EPN.topo$y)*2,
                                         length=gridRes)))
 GAMtopo$amplitude <-  predict(splineSmooth,GAMtopo,type="response")
 GAMtopo$incircle <- (GAMtopo$x)^2+(GAMtopo$y)^2<.7^2
 # plot topography
 ggplot(GAMtopo[GAMtopo$incircle,],aes(x,y,fill=amplitude)) +
   geom_raster() +
-  stat_contour(aes(z=amplitude),binwidth=contour.binwidth) +
+  stat_contour(aes(z=amplitude),binwidth=contour.binwidth,size=.8,color="black") +
   theme_topo() +
-  scale_fill_gradientn(colours=jet.colors(10),
+  scale_fill_gradientn(colors=viridis(10),
                        limits=amplim,
-                       guide="colourbar",
+                       guide="colorbar",
                        oob=squish) +
-  geom_path(data=maskRing,aes(x,y,z=NULL,fill=NULL),colour="white",size=6) +
-  geom_point(data=EPN.topos.grand.avg.allbins,
+  geom_path(data=maskRing,aes(x,y,z=NULL,fill=NULL),color="white",size=6) +
+  geom_point(data=EPN.topo,
              aes(x,y,fill=NULL)) +
   geom_path(data=nose,aes(x,y,z=NULL,fill=NULL),size=1.5) +
   geom_path(data=headShape,aes(x,y,z=NULL,fill=NULL),size=1.5) +
-  ggtitle("EPN (280 - 402 ms)") + 
+  ggtitle("EPN (300-500 ms)") + 
   coord_quickmap()
 ```
 
 # LPP
 
-Amplitude extracted from the following electrode cluster:   
-P5, P3, PO3, P1, Pz, POz, P2, P4, PO4, P6, PO8, CP6, P8, CP5, TP8, CP3, CP4, CP1, CP2, CPz, C5, C3, C4.   
+Amplitude extracted from the following electrode cluster: P1 Pz P2 P4 P6 P8 P10 POz PO4 PO8.
 
-```{r LPP_graph}
-# plot LPP
-ggplot(subset(comps.grand.avg.allbins,component=="LPP" & bin!="all"),aes(timepoint,amplitude)) + # basic plot
-  geom_line(aes(color=bin),size=.8,alpha=.6) + # one line per bin
-  stat_summary(fun.y=mean,geom="line",size=3) + # mean of all bins
-  scale_colour_brewer(palette="Dark2") + # color palette
-  labs(title="LPP (402 - 684 ms)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
-  scale_x_continuous(breaks=seq(-200,1000,50)) + # x-axis: tick marks
+```{r LPP_waveforms}
+# summarized data from each time point, including within-subject 95% CIs
+LPP.grand.avg.comps.pointsummary <- grand.avg.comps %>% # data frame
+  filter(elec_cluster=="LPP",condition!="negative",condition!="negative minus neutral",condition!="neutral") %>% # filter out useless conditions
+  summarySEwithin(data=.,measurevar="amplitude",withinvars=c("condition","timepoint"),idvar="participant") # summary
+LPP.grand.avg.comps.pointsummary$timepoint <- as.numeric(levels(LPP.grand.avg.comps.pointsummary$timepoint))[LPP.grand.avg.comps.pointsummary$timepoint] # convert time points to number
+
+# plot N1
+ggplot(filter(LPP.grand.avg.comps.pointsummary,condition!="localizer"),aes(x=timepoint,y=amplitude,group=condition,color=condition)) + # basic plot
+  geom_line(aes(color=condition),size=2.5,alpha=.6) + # one line per condition
+  # geom_ribbon(data=filter(LPP.grand.avg.comps.pointsummary,condition!="localizer"),aes(ymin=amplitude-ci,ymax=amplitude+ci,fill=condition),linetype="dotted",size=.1,alpha=.1) + # 95% CI for all conditions (commented out to improve visualization)
+  geom_line(data=filter(LPP.grand.avg.comps.pointsummary,condition=="localizer"),size=5) + # add thick black line for localizer
+  geom_ribbon(data=filter(LPP.grand.avg.comps.pointsummary,condition=="localizer"),aes(ymin=amplitude-ci,ymax=amplitude+ci),linetype="dotted",size=.1,alpha=.3) + # localizer 95% CI
+  scale_color_manual(values=waveforms.palette) + # line colors
+  scale_fill_manual(values=waveforms.palette) + # ribbon colors
+  guides(fill=FALSE,group=FALSE) + # remove unnecessary legends
+  labs(title="LPP (402-684 ms)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
+  scale_x_continuous(breaks=seq(-200,1000,50),limits=c(-100,800)) + # x-axis: tick marks
   scale_y_reverse(breaks=seq(-3,3,1),limits=c(3,-3)) + # y-axis: tick marks
-  geom_vline(xintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # vertical reference line
-  geom_hline(yintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # horizontal reference line
-  annotate("rect",xmin=402,xmax=684,ymin=-1,ymax=2,alpha=.2) + # highlight time window used for analysis
-  theme_pander(base_size=20,pc="white",lp=c(.2,.8)) # custom theme
-```
-
-The collapsed localizer (black line) suggests that the time window for LPP amplitude extraction could be larger. We select 402 - 1000 ms.
-
-```{r LPP_graph_large}
-# plot LPP
-ggplot(subset(comps.grand.avg.allbins,component=="LPP" & bin!="all"),aes(timepoint,amplitude)) + # basic plot
-  geom_line(aes(color=bin),size=.8,alpha=.6) + # one line per bin
-  stat_summary(fun.y=mean,geom="line",size=3) + # mean of all bins
-  scale_colour_brewer(palette="Dark2") + # color palette
-  labs(title="LPP (402 - 1000 ms)",x="time (ms)",y=expression(paste("amplitude (",mu,"V)"))) + # title & axes labels
-  scale_x_continuous(breaks=seq(-200,1000,50)) + # x-axis: tick marks
-  scale_y_reverse(breaks=seq(-3,3,1),limits=c(3,-3)) + # y-axis: tick marks
-  geom_vline(xintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # vertical reference line
-  geom_hline(yintercept=0,linetype="dashed",colour="black",size=.8,alpha=.8) + # horizontal reference line
-  annotate("rect",xmin=402,xmax=1000,ymin=-1,ymax=2,alpha=.2) + # highlight time window used for analysis
-  theme_pander(base_size=20,pc="white",lp=c(.2,.8)) # custom theme
+  geom_vline(xintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # vertical reference line
+  geom_hline(yintercept=0,linetype="dashed",color="black",size=1.2,alpha=.8) + # horizontal reference line
+  geom_vline(xintercept=seq(from=-200,to=800,by=50),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
+  geom_hline(yintercept=seq(from=-3,to=3,by=1),linetype="dotted",color="#999999",size=.8,alpha=.5) + # reference lines
+  annotate("rect",xmin=402,xmax=684,ymin=-.5,ymax=2.5,fill="#e08328",alpha=.2) + # highlight time window used for analysis
+  theme_pander(base_size=20,pc="white",lp=c(.15,.8)) # custom theme
 ```
 
 ```{r LPP_topo}
-# average across selected time points
-LPP.topos.grand.avg.allbins <- summarySEwithin(subset(grand.avg.allbins,timepoint >= 402 & timepoint <= 1000),"amplitude",withinvars="electrode")
-# electrode locations and amplitudes in the same data frame
-LPP.topos.grand.avg.allbins <- cbind(electrodeLocs,LPP.topos.grand.avg.allbins[,"amplitude"])
-names(LPP.topos.grand.avg.allbins)[8] <- "amplitude" # change variable name
+LPP.topo <- grand.avg.topos %>% # data frame
+  filter(component=="LPP",bin=="localizer") %>% # select only component and bin of interest 
+  summarySEwithin(data=.,measurevar="amplitude",withinvars="electrode",idvar="participant") # summary
+LPP.topo <- cbind(electrodeLocs,LPP.topo[,"amplitude"]) # electrode locations and amplitudes in the same data frame
+names(LPP.topo)[8] <- "amplitude" # change variable name
 
 # plot topography
-amplim <- c(-.5,.5) # min/max amplitude limit
+amplim <- c(-.6,.6) # min/max amplitude limit
 contour.binwidth <- .1 # map contour
-
-splineSmooth <- gam(amplitude~s(x,y,bs='ts'),data=LPP.topos.grand.avg.allbins)
-GAMtopo <- data.frame(expand.grid(x=seq(min(LPP.topos.grand.avg.allbins$x)*2,
-                                        max(LPP.topos.grand.avg.allbins$x)*2,
+splineSmooth <- gam(amplitude~s(x,y,bs='ts'),data=LPP.topo)
+GAMtopo <- data.frame(expand.grid(x=seq(min(LPP.topo$x)*2,
+                                        max(LPP.topo$x)*2,
                                         length=gridRes),
-                                  y=seq(min(LPP.topos.grand.avg.allbins$y)*2,
-                                        max(LPP.topos.grand.avg.allbins$y)*2,
+                                  y=seq(min(LPP.topo$y)*2,
+                                        max(LPP.topo$y)*2,
                                         length=gridRes)))
 GAMtopo$amplitude <-  predict(splineSmooth,GAMtopo,type="response")
 GAMtopo$incircle <- (GAMtopo$x)^2+(GAMtopo$y)^2<.7^2
 # plot topography
 ggplot(GAMtopo[GAMtopo$incircle,],aes(x,y,fill=amplitude)) +
   geom_raster() +
-  stat_contour(aes(z=amplitude),binwidth=contour.binwidth) +
+  stat_contour(aes(z=amplitude),binwidth=contour.binwidth,size=.8,color="black") +
   theme_topo() +
-  scale_fill_gradientn(colours=jet.colors(10),
+  scale_fill_gradientn(colors=viridis(10),
                        limits=amplim,
-                       guide="colourbar",
+                       guide="colorbar",
                        oob=squish) +
-  geom_path(data=maskRing,aes(x,y,z=NULL,fill=NULL),colour="white",size=6) +
-  geom_point(data=LPP.topos.grand.avg.allbins,
+  geom_path(data=maskRing,aes(x,y,z=NULL,fill=NULL),color="white",size=6) +
+  geom_point(data=LPP.topo,
              aes(x,y,fill=NULL)) +
   geom_path(data=nose,aes(x,y,z=NULL,fill=NULL),size=1.5) +
   geom_path(data=headShape,aes(x,y,z=NULL,fill=NULL),size=1.5) +
-  ggtitle("LPP (402 - 1000 ms)") + 
+  ggtitle("LPP (402-684 ms)") + 
   coord_quickmap()
 ```
 
