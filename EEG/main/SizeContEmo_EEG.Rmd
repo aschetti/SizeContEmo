@@ -32,6 +32,7 @@ pacman::p_load("knitr", # dynamic report generation
                "reshape2", # to reshape the data               
                "tidyverse", # install the following packages: ggplot2, tibble, tidyr, readr, purrr, dplyr
                "ggthemes", # more themes for ggplot2
+               "viridis", # more color maps
                "Rmisc", # for advanced summary functions
                "akima", # interpolation of irregularly and regularly spaced data
                "scales", # scale functions for visualization
@@ -245,9 +246,9 @@ GAMtopo$incircle <- (GAMtopo$x)^2+(GAMtopo$y)^2<.7^2
 # plot topography
 ggplot(GAMtopo[GAMtopo$incircle,],aes(x,y,fill=amplitude)) +
   geom_raster() +
-  stat_contour(aes(z=amplitude),binwidth=contour.binwidth) +
+  stat_contour(aes(z=amplitude),binwidth=contour.binwidth,size=.8,color="black") +
   theme_topo() +
-  scale_fill_gradientn(colors=jet.colors(10),
+  scale_fill_gradientn(colors=viridis(10),
                        limits=amplim,
                        guide="colorbar",
                        oob=squish) +
