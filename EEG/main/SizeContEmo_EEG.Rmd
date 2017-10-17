@@ -463,7 +463,10 @@ ggplot(GAMtopo[GAMtopo$incircle,],aes(x,y,fill=amplitude)) +
   coord_quickmap()
 ```
 
-<center> <h1>*ANALYSIS*</h1> </center>
+***
+***
+
+<center> <h1>*CONFIRMATORY ANALYSIS*</h1> </center>
 
 ```{r data}
 data.EEG.trial <- read.csv(paste0(expphase,"_trialEEG.csv"),header=TRUE) # load data
@@ -1643,5 +1646,22 @@ Conversely, omitting the *size x contrast* interaction or the main effect of *co
 
 ***
 ***
+
+<center> <h1>*EXPLORATORY ANALYSIS*</h1> </center>
+
+Visual inspection of the waveforms revealed unexpected latency shifts
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
