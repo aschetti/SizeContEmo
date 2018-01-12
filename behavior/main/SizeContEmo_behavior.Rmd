@@ -220,7 +220,7 @@ When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on sta
 + words in *small* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r format(compare.rt.posthocBF[1,4],scientific=TRUE)` $\pm$ `r round(compare.rt.posthocBF[1,5],digits=2)`);   
 + words in *low* contrast presented in *small vs. large* font ($\sf{BF_{10}}$=`r format(compare.rt.posthocBF[2,4],scientific=TRUE)` $\pm$ `r round(compare.rt.posthocBF[2,5],digits=2)`);   
 + words in *large* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r compare.rt.posthocBF[3,4]` $\pm$ `r round(compare.rt.posthocBF[3,5],digits=2)`).   
-The difference between words in *low* contrast presented in *large vs. small* font is non-conclusive ($\sf{BF_{10}}$=`r compare.rt.posthocBF[4,4]` $\pm$ `r round(compare.rt.posthocBF[4,5],digits=2)`).
+The difference between words in *high* contrast presented in *large vs. small* font is non-conclusive ($\sf{BF_{10}}$=`r compare.rt.posthocBF[4,4]` $\pm$ `r round(compare.rt.posthocBF[4,5],digits=2)`).
 
 ***
 ***
