@@ -2296,8 +2296,6 @@ Conversely, omitting  *contrast x size* or *size* lowers the explanatory value o
 
 ### Peak latency
 
-### Peak latency
-
 Peak latency: time (in ms) of the positive value larger than the 3 points (~10 ms at 256 Hz sampling rate) on either side of the peak.   
 Time window: 150-260 ms post-stimulus onset.   
 Electrode cluster: TP7 P7 P9 TP8 P8 P10.
