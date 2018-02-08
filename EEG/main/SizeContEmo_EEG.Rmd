@@ -1815,7 +1815,7 @@ Electrode cluster: P7 P9 PO7 O1 O2 PO8 P8 P10.
 ```{r P1_peaklat_pirateplot}
 # summarize data
 summary.P1.peaklat <- summarySEwithin(subset(data.peaks, component=="P1" & var=="peak.lat"), "value", withinvars=c("size", "cont", "emo"), idvar="participant")
-kable(summary.P1.peakamp, digits=2)
+kable(summary.P1.peaklat, digits=2)
 
 # pirateplot
 pirateplot(formula=value~emo+size+cont, # dependent~independent variables
@@ -2303,7 +2303,7 @@ Electrode cluster: TP7 P7 P9 TP8 P8 P10.
 ```{r N1_peaklat_pirateplot}
 # summarize data
 summary.N1.peaklat <- summarySEwithin(subset(data.peaks, component=="N1" & var=="peak.lat"), "value", withinvars=c("size", "cont", "emo"), idvar="participant")
-kable(summary.N1.peakamp, digits=2)
+kable(summary.N1.peaklat, digits=2)
 
 # pirateplot
 pirateplot(formula=value~emo+size+cont, # dependent~independent variables
