@@ -1,16 +1,23 @@
-# Startup
-
 .First <- function(){ # at startup
-  pkgdir <- "E:/R_workspace/packages" # set package directory
-  .libPaths(c(pkgdir,.libPaths())) # add package directory
-  # if (!require("pacman")) install.packages("pacman",dependencies=TRUE,lib=pkgdir) # install pacman if not already present
-  library(pacman,lib.loc=pkgdir) # load pacman
-  cat("\014") # clear console
-  cat("Hey dude. \nYour .Rprofile has been successfully loaded at", date(), "\n") # welcome message
+  .libPaths("~/Documents/Programs/R/packages/")
+  # colorful welcome message
+  library("crayon")
+  cat(
+    silver$bgWhite$bold('\nHello!\n')
+  )
 }
 
 .Last <- function(){ # quit
- cat("\nGoodbye at ", date(), "\n") # goodbye message
+  # colorful goodbye message
+  cat(
+    silver$bgWhite$bold('\nHope you had fun!')
+  )
+  # pause before quitting
+  take.a.break <- function(x)
+  {
+    p1 <- proc.time()
+    Sys.sleep(x)
+    proc.time() - p1
+  }
+  take.a.break(2) # 2 seconds
 }
-
-
