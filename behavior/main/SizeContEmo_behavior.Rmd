@@ -15,138 +15,174 @@ editor_options:
 
 Analysis of behavioral data.
 
-```{r setup_environment,echo=FALSE,warning=FALSE,message=FALSE}
-# setup work environment
-# dev.off() # clear plots (if no plots are present, comment it out or it will throw an error)
-cat("\014") # clear console
-rm(list=ls()) # clear environment
-set.seed(9001) # specify seed for RNG and ensure reproducible results (it's over 9000!)
-
-expname <- "SizeContEmo" # experiment name
-expphase <- "main" # experiment phase
-wd <- paste0("E:/Experiments/",expname,"/analysis/behavior/",expphase,"/") # work directory
-setwd(wd) # set work directory
+```{r setup_environment, echo = FALSE, warning = FALSE, message = FALSE}
+# set RNG seed
+set.seed(3) # 'a gatta
 
 # use pacman to install and load relevant packages
-pacman::p_load("knitr", # dynamic report generation
-               "tidyverse", # install the following packages: ggplot2, tibble, tidyr, readr, purrr, dplyr
-               "Rmisc", # for advanced summary functions
-               "yarrr", # amazing graphs
-               "BayesFactor") # calculate Bayes factors
+library(pacman)
+pacman::p_load(
+  "knitr",
+  "tidyverse",
+  "Rmisc",
+  "yarrr",
+  "BayesFactor"
+)
 
 # setup report output
-options(width=120,scipen=999,digits=3) # change output width (for better printing), disable scientific notation (default: scipen=0), constrain output to 4 decimals
-opts_chunk$set(warning=FALSE,message=FALSE,fig.width=10,fig.height=6) # for each chunk, display the output but not the R code (echo=FALSE), no package warnings (message=FALSE), no package messages (message=FALSE), width and height of all figures
+options(
+  width = 120, # change output width (for better printing)
+  scipen = 999, # disable scientific notation (default: scipen=0)
+  digits = 3 # constrain output to 3 decimals
+)
+
+# chunk options
+opts_chunk$set(
+  echo = FALSE, # display the output but not the R code
+  warning = FALSE, # no package warnings
+  message = FALSE, # no package messages
+  fig.width = 10, # figure width
+  fig.height = 6 # figure height
+)
 
 niter <- 100000 # number of MCMC iterations for calculation of Bayes Factors
-scaling.factor <- c(.5,.707,1) # scaling factors of JZS prior: narrow, medium, wide
+scaling.factor <- c(.5, .707, 1) # scaling factors of JZS prior: narrow, medium, wide
 ```
 
 ```{r data}
-data.behav <- read.csv("data_behavior.csv",header=TRUE) # load data
-data.behav <- data.behav %>% # data frame
-  mutate(cond=paste(size,cont,sep="_"), # create variable with merged conditions
-    size=relevel(size,ref="large"), # re-reference size to large
-         cont=relevel(cont,ref="dark")) # re-reference contrast to dark
+data.behav <- read_csv(paste0(getwd(), "/behavior/main/data_behavior.csv")) %>% # load data
+  mutate(
+    cond = paste(size, cont, sep = "_"), # variable with merged conditions
+    size = relevel(as.factor(size), ref = "large"), # re-reference size to large
+    cont = relevel(as.factor(cont), ref = "dark") # re-reference contrast to dark
+  )
 ```
 
-We will calculate and compare the Bayes Factor of different linear mixed-effects models. The random factors are participants and words, and their variance set as nuisance.   
+Calculate and compare the Bayes Factor of different linear mixed-effects models. The random factors are participants and words, and their variance set as nuisance.   
    
-We will compare (against the null model) the following models:   
+Compare (against the null model) the following models:   
    
 1. main effect of size
 2. main effect of contrast
 3. main effects of size and contrast
 4. interactive effects of size and contrast
    
-We will then compare the best competing models to understand which one should be preferred overall.   
+Afterwards, compare the best competing models to understand which one should be preferred overall.
 
 # RT
 
 ```{r rt_pirateplot}
-# summarize data
-summary.rt <- ddply(data.behav,.(ssj,size,cont,cond),summarize,
-                    RT=mean(RT,na.rm=TRUE))
-# better visualization with averages across trials
-summary.rt.plot <- summary.rt %>% # data frame
-  summarySEwithin(data=.,measurevar="RT",withinvars=c("size","cont"),idvar="ssj",na.rm=TRUE)
-kable(summary.rt.plot,digits=2)
+# average across trials
+summary.rt <- data.behav %>%
+  group_by(ssj, size, cont, cond) %>%
+  dplyr::summarize(N = n(),
+                   RT = mean(RT, na.rm = TRUE)
+                   )
+
+# average across participants
+summary.rt.plot <- summary.rt %>%
+  summarySEwithin(data = .,
+                  measurevar = "RT",
+                  withinvars = c("size", "cont"),
+                  idvar = "ssj",
+                  na.rm = TRUE) %>%
+  kable(summary.rt.plot, digits = 2)#  nicer table
 
 # pirateplot
-pirateplot(formula=RT~cont+size, # dependent~independent variables
-           data=summary.rt, # data frame
-           main="RTs", # main title
-           xlim=NULL, # x-axis: limits
-           xlab="",  # x-axis: label
-           ylim=c(450,850), # y-axis: limits
-           ylab="ms", # y-axis: label
-           inf.method="hdi", # type of inference: 95% Bayesian Highest Density Interval (HDI)
-           hdi.iter=5000, # number of iterations for 95% HDI
-           cap.beans=TRUE, # max and min values of bean densities are capped at the limits found in the data
-           pal="southpark") # color palette [see piratepal(palette="all")]
+pirateplot(
+  formula = RT ~ cont + size, # dependent~independent variables
+  data = summary.rt, # data frame
+  main = "RTs", # main title
+  xlim = NULL, # x-axis: limits
+  xlab = "", # x-axis: label
+  ylim = c(450, 850), # y-axis: limits
+  ylab = "ms", # y-axis: label
+  inf.method = "hdi", # type of inference: 95% Bayesian Highest Density Interval (HDI)
+  hdi.iter = 5000, # number of iterations for 95% HDI
+  cap.beans = TRUE, # bean densities capped at data limits
+  point.cex = 1.3, # points: size
+  pal = "southpark" # color palette [see piratepal(palette="all")]
+)
 ```  
 
 ```{r rt_models}
-compare.rt.BF <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all BFs
-compare.rt.perc.err <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all % errors
+# preallocate matrix with all BFs
+compare.rt.BF <- matrix(NA, 4, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.rt.perc.err <- matrix(NA, 4, length(scaling.factor))
 
-for(k in 1:length(scaling.factor)) { # loop through scaling factors
-  
+for (k in 1:length(scaling.factor)) { # loop through scaling factors
+
   ### main effect of size
-  rt.BF.size <- lmBF(RT~size, # formula
-                     summary.rt, # data (omit missing values)
-                     whichRandom="ssj", # random effects
-                     rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-                     rscaleRandom="nuisance", # prior scale for standardized random effects
-                     rscaleCont="medium", # prior scale for standardized slopes
-                     iterations=niter) # number of MCMC iterations
-                     
+  rt.BF.size <- lmBF(RT ~ size, # formula
+    summary.rt, # data (omit missing values)
+    whichRandom = "ssj", # random effects
+    rscaleFixed = scaling.factor[k], # scaling factor of prior on effect size
+    rscaleRandom = "nuisance", # prior scale for standardized random effects
+    rscaleCont = "medium", # prior scale for standardized slopes
+    iterations = niter # number of MCMC iterations
+  )
+
   ### main effect of contrast
-  rt.BF.cont <- lmBF(RT~cont, # formula
-                     summary.rt, # data (omit missing values)
-                     whichRandom="ssj", # random effects
-                     rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-                     rscaleRandom="nuisance", # prior scale for standardized random effects
-                     rscaleCont="medium", # prior scale for standardized slopes
-                     iterations=niter) # number of MCMC iterations
+  rt.BF.cont <- lmBF(RT ~ cont,
+    summary.rt,
+    whichRandom = "ssj",
+    rscaleFixed = scaling.factor[k],
+    rscaleRandom = "nuisance",
+    rscaleCont = "medium",
+    iterations = niter
+  )
 
   ### main effects of size and contrast
-  rt.BF.sizepluscont <- lmBF(RT~size+cont, # formula
-                             summary.rt, # data (omit missing values)
-                             whichRandom="ssj", # random effects
-                             rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-                             rscaleRandom="nuisance", # prior scale for standardized random effects
-                             rscaleCont="medium", # prior scale for standardized slopes
-                             iterations=niter) # number of MCMC iterations
-  
+  rt.BF.sizepluscont <- lmBF(RT ~ size + cont,
+    summary.rt,
+    whichRandom = "ssj",
+    rscaleFixed = scaling.factor[k],
+    rscaleRandom = "nuisance",
+    rscaleCont = "medium",
+    iterations = niter
+  )
+
   ### full model: main effects of size and contrast + their interaction
-  rt.BF.full <- lmBF(RT~size*cont, # formula
-                     summary.rt, # data (omit missing values)
-                     whichRandom="ssj", # random effects
-                     rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-                     rscaleRandom="nuisance", # prior scale for standardized random effects
-                     rscaleCont="medium", # prior scale for standardized slopes
-                     iterations=niter) # number of MCMC iterations
-  
+  rt.BF.full <- lmBF(RT ~ size * cont,
+    summary.rt,
+    whichRandom = "ssj",
+    rscaleFixed = scaling.factor[k],
+    rscaleRandom = "nuisance",
+    rscaleCont = "medium",
+    iterations = niter
+  )
+
   ### model comparison
   # BFs
-  compare.rt.BF[,k] <- c(exp(rt.BF.size@bayesFactor$bf[1]),
-                         exp(rt.BF.cont@bayesFactor$bf[1]),
-                         exp(rt.BF.sizepluscont@bayesFactor$bf[1]),
-                         exp(rt.BF.full@bayesFactor$bf[1]))
+  compare.rt.BF[, k] <- c(
+    exp(rt.BF.size@bayesFactor$bf[1]),
+    exp(rt.BF.cont@bayesFactor$bf[1]),
+    exp(rt.BF.sizepluscont@bayesFactor$bf[1]),
+    exp(rt.BF.full@bayesFactor$bf[1])
+  )
   # percentage of error
-  compare.rt.perc.err[,k] <- c(rt.BF.size@bayesFactor$error[1]*100,
-                               rt.BF.cont@bayesFactor$error[1]*100,
-                               rt.BF.sizepluscont@bayesFactor$error[1]*100,
-                               rt.BF.full@bayesFactor$error[1]*100)
+  compare.rt.perc.err[, k] <- c(
+    rt.BF.size@bayesFactor$error[1] * 100,
+    rt.BF.cont@bayesFactor$error[1] * 100,
+    rt.BF.sizepluscont@bayesFactor$error[1] * 100,
+    rt.BF.full@bayesFactor$error[1] * 100
+  )
 }
+
 # summary confirmatory analysis
-compare.rt <- data.frame("model"=c("size","contr","size + contr","size x cont"),
-                         "nar"=compare.rt.BF[,1],"nar.p.err"=compare.rt.perc.err[,1],
-                         "med"=compare.rt.BF[,2],"med.p.err"=compare.rt.perc.err[,2],
-                         "wid"=compare.rt.BF[,3],"wid.p.err"=compare.rt.perc.err[,3])
-compare.rt <- compare.rt[order(compare.rt$med,decreasing=TRUE),] # sort according to medium scaling factor (in descending order)
-kable(format(compare.rt,scientific=TRUE),digits=2)
+compare.rt <- data.frame(
+  "model" = c("size", "contr", "size + contr", "size x cont"),
+  "nar" = compare.rt.BF[, 1], "nar.p.err" = compare.rt.perc.err[, 1],
+  "med" = compare.rt.BF[, 2], "med.p.err" = compare.rt.perc.err[, 2],
+  "wid" = compare.rt.BF[, 3], "wid.p.err" = compare.rt.perc.err[, 3]
+)
+
+# sort according to medium scaling factor (in descending order)
+compare.rt <- compare.rt[order(compare.rt$med, decreasing = TRUE), ]
+
+# nicer table
+kable(format(compare.rt, scientific = TRUE), digits = 2)
 ```
    
 When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model *`r ifelse(compare.rt[1,4]<1,"null",as.character(compare.rt[1,1]))`* ought to be preferred.   
@@ -155,65 +191,90 @@ The best model (*`r ifelse(compare.rt[1,4]>1,as.character(compare.rt[1,1]),"null
 ## Paired comparisons
 
 ```{r rt_posthoc}
-data.rt <- summary.rt %>% # data frame
+data.rt <- summary.rt %>%
   split(.$cond) # split according to condition
 
-compare.rt.posthocBF <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all BF10
-compare.rt.posthocBF.perc.err <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all % errors
+# preallocate matrix with all BF10
+compare.rt.posthocBF <- matrix(NA, 4, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.rt.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor)) 
 
-for(k in 1:length(scaling.factor)) { # loop through scaling factors
-  
+for (k in 1:length(scaling.factor)) { # loop through scaling factors
+
   # large, dark vs. bright
-  rt.posthocBF.large.darkVSbright <- ttestBF(data.rt$large_dark$RT, # first condition
-                                             data.rt$large_bright$RT, # second condition
-                                             mu=0, # null hypothesis (mean difference=0)
-                                             paired=TRUE, # paired sample test
-                                             iterations=niter, # number of MCMC iterations
-                                             rscale=scaling.factor[k]) # scaling factor
-  
+  rt.posthocBF.large.darkVSbright <- ttestBF(
+    data.rt$large_dark$RT, # first condition
+    data.rt$large_bright$RT, # second condition
+    mu = 0, # null hypothesis (mean difference = 0)
+    paired = TRUE, # paired sample test
+    iterations = niter, # number of MCMC iterations
+    rscale = scaling.factor[k] # scaling factor
+  )
+
   # small, dark vs. bright
-  rt.posthocBF.small.darkVSbright <- ttestBF(data.rt$small_dark$RT, # first condition
-                                             data.rt$small_bright$RT, # second condition
-                                             mu=0, # null hypothesis (mean difference=0)
-                                             paired=TRUE, # paired sample test
-                                             iterations=niter, # number of MCMC iterations
-                                             rscale=scaling.factor[k]) # scaling factor
-  
+  rt.posthocBF.small.darkVSbright <- ttestBF(
+    data.rt$small_dark$RT,
+    data.rt$small_bright$RT,
+    mu = 0,
+    paired = TRUE,
+    iterations = niter,
+    rscale = scaling.factor[k]
+  )
+
   # dark, large vs. small
-  rt.posthocBF.dark.largeVSsmall <- ttestBF(data.rt$large_dark$RT, # first condition
-                                            data.rt$small_dark$RT, # second condition
-                                            mu=0, # null hypothesis (mean difference=0)
-                                            paired=TRUE, # paired sample test
-                                            iterations=niter, # number of MCMC iterations
-                                            rscale=scaling.factor[k]) # scaling factor
-  
+  rt.posthocBF.dark.largeVSsmall <- ttestBF(
+    data.rt$large_dark$RT,
+    data.rt$small_dark$RT,
+    mu = 0,
+    paired = TRUE,
+    iterations = niter,
+    rscale = scaling.factor[k]
+  )
+
   # bright, large vs. small
-  rt.posthocBF.bright.largeVSsmall <- ttestBF(data.rt$large_bright$RT, # first condition
-                                              data.rt$small_bright$RT, # second condition
-                                              mu=0, # null hypothesis (mean difference=0)
-                                              paired=TRUE, # paired sample test
-                                              iterations=niter, # number of MCMC iterations
-                                              rscale=scaling.factor[k]) # scaling factor
- 
+  rt.posthocBF.bright.largeVSsmall <- ttestBF(
+    data.rt$large_bright$RT,
+    data.rt$small_bright$RT,
+    mu = 0,
+    paired = TRUE,
+    iterations = niter,
+    rscale = scaling.factor[k]
+  )
+
   ### model comparison
-  compare.rt.posthocBF[,k] <- c(exp(rt.posthocBF.large.darkVSbright@bayesFactor$bf[1]),
-                                exp(rt.posthocBF.small.darkVSbright@bayesFactor$bf[1]),
-                                exp(rt.posthocBF.dark.largeVSsmall@bayesFactor$bf[1]),
-                                exp(rt.posthocBF.bright.largeVSsmall@bayesFactor$bf[1]))
-  
+  compare.rt.posthocBF[, k] <- c(
+    exp(rt.posthocBF.large.darkVSbright@bayesFactor$bf[1]),
+    exp(rt.posthocBF.small.darkVSbright@bayesFactor$bf[1]),
+    exp(rt.posthocBF.dark.largeVSsmall@bayesFactor$bf[1]),
+    exp(rt.posthocBF.bright.largeVSsmall@bayesFactor$bf[1])
+  )
+
   # percentage of error
-  compare.rt.posthocBF.perc.err[,k] <- c(rt.posthocBF.large.darkVSbright@bayesFactor$error[1]*100,
-                                         rt.posthocBF.small.darkVSbright@bayesFactor$error[1]*100,
-                                         rt.posthocBF.dark.largeVSsmall@bayesFactor$error[1]*100,
-                                         rt.posthocBF.bright.largeVSsmall@bayesFactor$error[1]*100)
+  compare.rt.posthocBF.perc.err[, k] <- c(
+    rt.posthocBF.large.darkVSbright@bayesFactor$error[1] * 100,
+    rt.posthocBF.small.darkVSbright@bayesFactor$error[1] * 100,
+    rt.posthocBF.dark.largeVSsmall@bayesFactor$error[1] * 100,
+    rt.posthocBF.bright.largeVSsmall@bayesFactor$error[1] * 100
+  )
 }
+
 # summary
-compare.rt.posthocBF <- data.frame("comparison"=c("large.darkVSbright","small.darkVSbright","dark.largeVSsmall","bright.largeVSsmall"),
-                                   "nar"=compare.rt.posthocBF[,1],"nar.p.err"=compare.rt.posthocBF.perc.err[,1],
-                                   "med"=compare.rt.posthocBF[,2],"med.p.err"=compare.rt.posthocBF.perc.err[,2],
-                                   "wid"=compare.rt.posthocBF[,3],"wid.p.err"=compare.rt.posthocBF.perc.err[,3])
-compare.rt.posthocBF <- compare.rt.posthocBF[order(compare.rt.posthocBF$med,decreasing=TRUE),] # sort according to medium scaling factor (in descending order)
-kable(format(compare.rt.posthocBF,scientific=TRUE),digits=2)
+compare.rt.posthocBF <- data.frame(
+  "comparison" = c("large.darkVSbright", "small.darkVSbright",
+                   "dark.largeVSsmall", "bright.largeVSsmall"),
+  "nar" = compare.rt.posthocBF[, 1], 
+  "nar.p.err" = compare.rt.posthocBF.perc.err[, 1],
+  "med" = compare.rt.posthocBF[, 2],
+  "med.p.err" = compare.rt.posthocBF.perc.err[, 2],
+  "wid" = compare.rt.posthocBF[, 3],
+  "wid.p.err" = compare.rt.posthocBF.perc.err[, 3]
+)
+
+# sort according to medium scaling factor (in descending order)
+compare.rt.posthocBF <- compare.rt.posthocBF[order(compare.rt.posthocBF$med, decreasing = TRUE), ]
+
+# nicer table
+kable(format(compare.rt.posthocBF, scientific = TRUE), digits = 2)
 ```
 
 When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, we observe longer RTs for:   
@@ -229,90 +290,116 @@ The difference between words in *high* contrast presented in *large vs. small* f
 
 ```{r acc_pirateplot}
 # calculate proportion of correct responses per participant and condition
-data.acc <- ddply(data.behav,.(ssj,size,cont),summarize,
-        freqs=length(which(resp=="hit"))/length(resp))
-data.acc$cond <- paste(data.acc$size,data.acc$cont,sep="_") # create variable with merged conditions
+data.acc <- data.behav %>%
+  group_by(ssj, size, cont, cond) %>%
+  dplyr::summarize(N = n(),
+                   freqs = length(which(resp == "hit"))/length(resp))
 
-# summarize data
-summary.acc <- data.acc %>% # data frame
-  summarySEwithin(data=.,measurevar="freqs",withinvars=c("size","cont"),idvar="ssj",na.rm=TRUE)
-kable(summary.acc,digits=2)
+# average across participants
+summary.acc <- data.acc %>%
+  summarySEwithin(data = .,
+                  measurevar = "freqs",
+                  withinvars = c("size", "cont"),
+                  idvar = "ssj", na.rm = TRUE)
 
+# nicer table
+kable(summary.acc, digits = 2)
+                   
 # pirateplot
-pirateplot(formula=freqs~cont+size, # dependent~independent variables
-           data=data.acc, # data frame
-           main="accuracy", # main title
-           xlim=NULL, # x-axis: limits
-           xlab="",  # x-axis: label
-           ylim=c(.8,1), # y-axis: limits
-           ylab="proportion of correct responses", # y-axis: label
-           inf.method="hdi", # type of inference: 95% Bayesian Highest Density Interval (HDI)
-           hdi.iter=5000, # number of iterations for 95% HDI
-           cap.beans=TRUE, # max and min values of bean densities are capped at the limits found in the data
-           pal="southpark") # color palette [see piratepal(palette="all")]
+pirateplot(
+  formula = freqs ~ cont + size,
+  data = data.acc,
+  main = "accuracy",
+  xlim = NULL,
+  xlab = "",
+  ylim = c(.8, 1),
+  ylab = "proportion of correct responses",
+  inf.method = "hdi",
+  hdi.iter = 5000,
+  cap.beans = TRUE,
+  pal = "southpark"
+)
 ```
 
 ```{r acc_models}
-compare.acc.BF <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all BFs
-compare.acc.perc.err <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all % errors
+# preallocate matrix with all BFs
+compare.acc.BF <- matrix(NA, 4, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.acc.perc.err <- matrix(NA, 4, length(scaling.factor))
 
-for(k in 1:length(scaling.factor)) { # loop through scaling factors
-  
+for (k in 1:length(scaling.factor)) { # loop through scaling factors
+
   ### main effect of size
-  acc.BF.size <- lmBF(freqs~size, # formula
-                     data.acc, # data
-                     whichRandom="ssj", # random effects
-                     rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-                     rscaleRandom="nuisance", # prior scale for standardized random effects
-                     rscaleCont="medium", # prior scale for standardized slopes
-                     iterations=niter) # number of MCMC iterations
-                     
+  acc.BF.size <- lmBF(freqs ~ size, # formula
+    data.acc, # data
+    whichRandom = "ssj", # random effects
+    rscaleFixed = scaling.factor[k], # scaling factor of prior on effect size
+    rscaleRandom = "nuisance", # prior scale for standardized random effects
+    rscaleCont = "medium", # prior scale for standardized slopes
+    iterations = niter # number of MCMC iterations
+  )
+
   ### main effect of contrast
-  acc.BF.cont <- lmBF(freqs~cont, # formula
-                     data.acc, # data
-                     whichRandom="ssj", # random effects
-                     rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-                     rscaleRandom="nuisance", # prior scale for standardized random effects
-                     rscaleCont="medium", # prior scale for standardized slopes
-                     iterations=niter) # number of MCMC iterations
+  acc.BF.cont <- lmBF(freqs ~ cont,
+    data.acc,
+    whichRandom = "ssj",
+    rscaleFixed = scaling.factor[k],
+    rscaleRandom = "nuisance",
+    rscaleCont = "medium",
+    iterations = niter
+  )
 
   ### main effects of size and contrast
-  acc.BF.sizepluscont <- lmBF(freqs~size+cont, # formula
-                             data.acc, # data
-                             whichRandom="ssj", # random effects
-                             rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-                             rscaleRandom="nuisance", # prior scale for standardized random effects
-                             rscaleCont="medium", # prior scale for standardized slopes
-                             iterations=niter) # number of MCMC iterations
-  
+  acc.BF.sizepluscont <- lmBF(freqs ~ size + cont,
+    data.acc,
+    whichRandom = "ssj",
+    rscaleFixed = scaling.factor[k],
+    rscaleRandom = "nuisance",
+    rscaleCont = "medium",
+    iterations = niter
+  )
+
   ### full model: main effects of size and contrast + their interaction
-  acc.BF.full <- lmBF(freqs~size*cont, # formula
-                     data.acc, # data
-                     whichRandom="ssj", # random effects
-                     rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-                     rscaleRandom="nuisance", # prior scale for standardized random effects
-                     rscaleCont="medium", # prior scale for standardized slopes
-                     iterations=niter) # number of MCMC iterations
-  
+  acc.BF.full <- lmBF(freqs ~ size * cont,
+    data.acc,
+    whichRandom = "ssj",
+    rscaleFixed = scaling.factor[k],
+    rscaleRandom = "nuisance",
+    rscaleCont = "medium",
+    iterations = niter
+  )
+
   ### model comparison
   # BFs
-  compare.acc.BF[,k] <- c(exp(acc.BF.size@bayesFactor$bf[1]),
-                         exp(acc.BF.cont@bayesFactor$bf[1]),
-                         exp(acc.BF.sizepluscont@bayesFactor$bf[1]),
-                         exp(acc.BF.full@bayesFactor$bf[1]))
+  compare.acc.BF[, k] <- c(
+    exp(acc.BF.size@bayesFactor$bf[1]),
+    exp(acc.BF.cont@bayesFactor$bf[1]),
+    exp(acc.BF.sizepluscont@bayesFactor$bf[1]),
+    exp(acc.BF.full@bayesFactor$bf[1])
+  )
+  
   # percentage of error
-  compare.acc.perc.err[,k] <- c(acc.BF.size@bayesFactor$error[1]*100,
-                               acc.BF.cont@bayesFactor$error[1]*100,
-                               acc.BF.sizepluscont@bayesFactor$error[1]*100,
-                               acc.BF.full@bayesFactor$error[1]*100)
+  compare.acc.perc.err[, k] <- c(
+    acc.BF.size@bayesFactor$error[1] * 100,
+    acc.BF.cont@bayesFactor$error[1] * 100,
+    acc.BF.sizepluscont@bayesFactor$error[1] * 100,
+    acc.BF.full@bayesFactor$error[1] * 100
+  )
 }
+
 # summary confirmatory analysis
-compare.acc <- data.frame("model"=c("size","contr","size + contr","size x cont"),
-                         "nar"=compare.acc.BF[,1],"nar.p.err"=compare.acc.perc.err[,1],
-                         "med"=compare.acc.BF[,2],"med.p.err"=compare.acc.perc.err[,2],
-                         "wid"=compare.acc.BF[,3],"wid.p.err"=compare.acc.perc.err[,3])
-compare.acc <- compare.acc[order(compare.acc$med,decreasing=TRUE),] # sort according to medium scaling factor (in descending order)
-kable(format(compare.acc,scientific=TRUE),digits=2)
+compare.acc <- data.frame(
+  "model" = c("size", "contr", "size + contr", "size x cont"),
+  "nar" = compare.acc.BF[, 1], "nar.p.err" = compare.acc.perc.err[, 1],
+  "med" = compare.acc.BF[, 2], "med.p.err" = compare.acc.perc.err[, 2],
+  "wid" = compare.acc.BF[, 3], "wid.p.err" = compare.acc.perc.err[, 3]
+)
+
+# sort according to medium scaling factor (in descending order)
+compare.acc <- compare.acc[order(compare.acc$med, decreasing = TRUE), ] 
+
+# nicer table
+kable(format(compare.acc, scientific = TRUE), digits = 2)
 ```
    
 When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model *`r ifelse(compare.acc[1,4]<1,"null",as.character(compare.acc[1,1]))`* ought to be preferred.   
@@ -321,66 +408,89 @@ The best model (*`r ifelse(compare.acc[1,4]>1,as.character(compare.acc[1,1]),"nu
 ## Paired comparisons
 
 ```{r acc_posthoc}
-data.acc <- data.acc %>% # data frame
-  summarySEwithin(data=.,measurevar="freqs",withinvars=c("ssj","cond")) %>% # summary
+data.acc <- data.acc %>%
   split(.$cond) # split according to condition
 
-compare.acc.posthocBF <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all BF10
-compare.acc.posthocBF.perc.err <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all % errors
+# preallocate matrix with all BF10
+compare.acc.posthocBF <- matrix(NA, 4, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.acc.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor))
 
-for(k in 1:length(scaling.factor)) { # loop through scaling factors
-  
+for (k in 1:length(scaling.factor)) { # loop through scaling factors
+
   # large, dark vs. bright
-  acc.posthocBF.large.darkVSbright <- ttestBF(data.acc$large_dark$freqs, # first condition
-                                             data.acc$large_bright$freqs, # second condition
-                                             mu=0, # null hypothesis (mean difference=0)
-                                             paired=TRUE, # paired sample test
-                                             iterations=niter, # number of MCMC iterations
-                                             rscale=scaling.factor[k]) # scaling factor
-  
+  acc.posthocBF.large.darkVSbright <- ttestBF(
+    data.acc$large_dark$freqs, # first condition
+    data.acc$large_bright$freqs, # second condition
+    mu = 0, # null hypothesis (mean difference = 0)
+    paired = TRUE, # paired sample test
+    iterations = niter, # number of MCMC iterations
+    rscale = scaling.factor[k] # scaling factor
+  )
+
   # small, dark vs. bright
-  acc.posthocBF.small.darkVSbright <- ttestBF(data.acc$small_dark$freqs, # first condition
-                                             data.acc$small_bright$freqs, # second condition
-                                             mu=0, # null hypothesis (mean difference=0)
-                                             paired=TRUE, # paired sample test
-                                             iterations=niter, # number of MCMC iterations
-                                             rscale=scaling.factor[k]) # scaling factor
-  
+  acc.posthocBF.small.darkVSbright <- ttestBF(
+    data.acc$small_dark$freqs,
+    data.acc$small_bright$freqs,
+    mu = 0,
+    paired = TRUE,
+    iterations = niter,
+    rscale = scaling.factor[k]
+  )
+
   # dark, large vs. small
-  acc.posthocBF.dark.largeVSsmall <- ttestBF(data.acc$large_dark$freqs, # first condition
-                                            data.acc$small_dark$freqs, # second condition
-                                            mu=0, # null hypothesis (mean difference=0)
-                                            paired=TRUE, # paired sample test
-                                            iterations=niter, # number of MCMC iterations
-                                            rscale=scaling.factor[k]) # scaling factor
-  
+  acc.posthocBF.dark.largeVSsmall <- ttestBF(
+    data.acc$large_dark$freqs,
+    data.acc$small_dark$freqs,
+    mu = 0,
+    paired = TRUE,
+    iterations = niter,
+    rscale = scaling.factor[k]
+  )
+
   # bright, large vs. small
-  acc.posthocBF.bright.largeVSsmall <- ttestBF(data.acc$large_bright$freqs, # first condition
-                                              data.acc$small_bright$freqs, # second condition
-                                              mu=0, # null hypothesis (mean difference=0)
-                                              paired=TRUE, # paired sample test
-                                              iterations=niter, # number of MCMC iterations
-                                              rscale=scaling.factor[k]) # scaling factor
- 
+  acc.posthocBF.bright.largeVSsmall <- ttestBF(
+    data.acc$large_bright$freqs,
+    data.acc$small_bright$freqs,
+    mu = 0,
+    paired = TRUE,
+    iterations = niter,
+    rscale = scaling.factor[k]
+  )
+
   ### model comparison
-  compare.acc.posthocBF[,k] <- c(exp(acc.posthocBF.large.darkVSbright@bayesFactor$bf[1]),
-                                exp(acc.posthocBF.small.darkVSbright@bayesFactor$bf[1]),
-                                exp(acc.posthocBF.dark.largeVSsmall@bayesFactor$bf[1]),
-                                exp(acc.posthocBF.bright.largeVSsmall@bayesFactor$bf[1]))
-  
+  compare.acc.posthocBF[, k] <- c(
+    exp(acc.posthocBF.large.darkVSbright@bayesFactor$bf[1]),
+    exp(acc.posthocBF.small.darkVSbright@bayesFactor$bf[1]),
+    exp(acc.posthocBF.dark.largeVSsmall@bayesFactor$bf[1]),
+    exp(acc.posthocBF.bright.largeVSsmall@bayesFactor$bf[1])
+  )
   # percentage of error
-  compare.acc.posthocBF.perc.err[,k] <- c(acc.posthocBF.large.darkVSbright@bayesFactor$error[1]*100,
-                                         acc.posthocBF.small.darkVSbright@bayesFactor$error[1]*100,
-                                         acc.posthocBF.dark.largeVSsmall@bayesFactor$error[1]*100,
-                                         acc.posthocBF.bright.largeVSsmall@bayesFactor$error[1]*100)
+  compare.acc.posthocBF.perc.err[, k] <- c(
+    acc.posthocBF.large.darkVSbright@bayesFactor$error[1] * 100,
+    acc.posthocBF.small.darkVSbright@bayesFactor$error[1] * 100,
+    acc.posthocBF.dark.largeVSsmall@bayesFactor$error[1] * 100,
+    acc.posthocBF.bright.largeVSsmall@bayesFactor$error[1] * 100
+  )
 }
+
 # summary
-compare.acc.posthocBF <- data.frame("comparison"=c("large.darkVSbright","small.darkVSbright","dark.largeVSsmall","bright.largeVSsmall"),
-                                   "nar"=compare.acc.posthocBF[,1],"nar.p.err"=compare.acc.posthocBF.perc.err[,1],
-                                   "med"=compare.acc.posthocBF[,2],"med.p.err"=compare.acc.posthocBF.perc.err[,2],
-                                   "wid"=compare.acc.posthocBF[,3],"wid.p.err"=compare.acc.posthocBF.perc.err[,3])
-compare.acc.posthocBF <- compare.acc.posthocBF[order(compare.acc.posthocBF$med,decreasing=TRUE),] # soacc according to medium scaling factor (in descending order)
-kable(format(compare.acc.posthocBF,scientific=TRUE),digits=2)
+compare.acc.posthocBF <- data.frame(
+  "comparison" = c("large.darkVSbright", "small.darkVSbright", 
+                   "dark.largeVSsmall", "bright.largeVSsmall"),
+  "nar" = compare.acc.posthocBF[, 1], 
+  "nar.p.err" = compare.acc.posthocBF.perc.err[, 1],
+  "med" = compare.acc.posthocBF[, 2], 
+  "med.p.err" = compare.acc.posthocBF.perc.err[, 2],
+  "wid" = compare.acc.posthocBF[, 3], 
+  "wid.p.err" = compare.acc.posthocBF.perc.err[, 3]
+)
+
+# soacc according to medium scaling factor (in descending order)
+compare.acc.posthocBF <- compare.acc.posthocBF[order(compare.acc.posthocBF$med, decreasing = TRUE), ]
+
+# nicer table
+kable(format(compare.acc.posthocBF, scientific = TRUE), digits = 2)
 ```
 
 When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, we observe lower accuracy for:    
@@ -390,5 +500,3 @@ No reliable accuracy difference is observed between words in *large* font presen
 
 ***
 ***
-
-
