@@ -281,10 +281,12 @@ compare.rt.posthocBF <- compare.rt.posthocBF[order(compare.rt.posthocBF$med, dec
 kable(format(compare.rt.posthocBF, scientific = TRUE), digits = 2)
 ```
 
-When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, we observe longer RTs for:   
-+ words in *small* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r format(compare.rt.posthocBF[1,4],scientific=TRUE)` $\pm$ `r round(compare.rt.posthocBF[1,5],digits=2)`);   
-+ words in *low* contrast presented in *small vs. large* font ($\sf{BF_{10}}$=`r format(compare.rt.posthocBF[2,4],scientific=TRUE)` $\pm$ `r round(compare.rt.posthocBF[2,5],digits=2)`);   
-+ words in *large* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r compare.rt.posthocBF[3,4]` $\pm$ `r round(compare.rt.posthocBF[3,5],digits=2)`).   
+When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, we observe longer RTs for:
+
+* words in *small* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r format(compare.rt.posthocBF[1,4],scientific=TRUE)` $\pm$ `r round(compare.rt.posthocBF[1,5],digits=2)`);
+* words in *low* contrast presented in *small vs. large* font ($\sf{BF_{10}}$=`r format(compare.rt.posthocBF[2,4],scientific=TRUE)` $\pm$ `r round(compare.rt.posthocBF[2,5],digits=2)`);
+* words in *large* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r compare.rt.posthocBF[3,4]` $\pm$ `r round(compare.rt.posthocBF[3,5],digits=2)`).
+
 The difference between words in *high* contrast presented in *large vs. small* font is non-conclusive ($\sf{BF_{10}}$=`r compare.rt.posthocBF[4,4]` $\pm$ `r round(compare.rt.posthocBF[4,5],digits=2)`).
 
 ***
@@ -407,7 +409,7 @@ kable(format(compare.acc, scientific = TRUE), digits = 2)
 ```
    
 When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model *`r ifelse(compare.acc[1,4]<1,"null",as.character(compare.acc[1,1]))`* ought to be preferred.   
-The best model (*`r ifelse(compare.acc[1,4]>1,as.character(compare.acc[1,1]),"null")`*) explains the observed data `r ifelse(compare.acc[1,4]>1,compare.acc[1,4]/compare.acc[2,4],1/compare.acc[1,4])` times better than the second best model (*`r ifelse(compare.acc[1,4]>1,as.character(compare.acc[2,1]),as.character(compare.acc[1,1]))`*).   
+The best model (*`r ifelse(compare.acc[1,4]>1,as.character(compare.acc[1,1]),"null")`*) explains the observed data `r ifelse(compare.acc[1,4]>1,compare.acc[1,4]/compare.acc[2,4],1/compare.acc[1,4])` times better than the second best model (*`r ifelse(compare.acc[1,4]>1,as.character(compare.acc[2,1]),as.character(compare.acc[1,1]))`*).
 
 ## Paired comparisons
 
@@ -497,9 +499,11 @@ compare.acc.posthocBF <- compare.acc.posthocBF[order(compare.acc.posthocBF$med, 
 kable(format(compare.acc.posthocBF, scientific = TRUE), digits = 2)
 ```
 
-When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, we observe lower accuracy for:    
-+ words in *small* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r format(compare.acc.posthocBF[1,4],scientific=TRUE)` $\pm$ `r round(compare.acc.posthocBF[1,5],digits=2)`);   
-+ words in *low* contrast presented in *small vs. large* font ($\sf{BF_{10}}$=`r format(compare.acc.posthocBF[2,4],scientific=TRUE)` $\pm$ `r round(compare.acc.posthocBF[2,5],digits=2)`).   
+When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, we observe lower accuracy for:
+
+* words in *small* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r format(compare.acc.posthocBF[1,4],scientific=TRUE)` $\pm$ `r round(compare.acc.posthocBF[1,5],digits=2)`);
+* words in *low* contrast presented in *small vs. large* font ($\sf{BF_{10}}$=`r format(compare.acc.posthocBF[2,4],scientific=TRUE)` $\pm$ `r round(compare.acc.posthocBF[2,5],digits=2)`).
+
 No reliable accuracy difference is observed between words in *large* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r compare.acc.posthocBF[3,4]` $\pm$ `r round(compare.acc.posthocBF[3,5],digits=2)`) as well as words in *low* contrast presented in *large vs. small* font ($\sf{BF_{10}}$=`r compare.acc.posthocBF[4,4]` $\pm$ `r round(compare.acc.posthocBF[4,5],digits=2)`).
 
 ***
