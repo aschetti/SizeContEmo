@@ -25,17 +25,10 @@ pacman::p_load(
   "rmarkdown",
   "knitr",
   "here",
-  # "reshape2", 
-  # "ggthemes",
-  # "viridis",
-  # "akima",
-  # "scales",
-  # "mgcv",
-  # "grid",
-  # "gridExtra",
   "tidyverse",
   "Rmisc",
   "viridis",
+  "eegUtils",
   "yarrr",
   "BayesFactor"
 )
@@ -65,8 +58,6 @@ waveforms.palette <- c("#440154FF", # purple
                        "#5DC863FF", # green
                        "#FDE725FF") # yellow
                        
-
-# waveforms.palette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#FFE259", "#0072B2", "#D55E00", "#CC79A7", "#999999")
 # pirateplot.palette <- c("#E69F00", "#56B4E9", "#009E73", "#FFE259", "#0072B2", "#D55E00", "#CC79A7", "#999999")
 
 niter <- 100000 # number of MCMC iterations for calculation of Bayes Factors
@@ -86,8 +77,7 @@ grand.avg.localizer <- read_csv(here::here("/EEG/main/main_grandEEG_localizer.cs
     -c(participant, electrode) # keep participants and electrodes as columns
   )
 
-# summarized data from each time point
-# within-subject 95% CIs, although calculated, will not be used (to improve visualization)
+# summarized data from each time point (& within-subject 95% CI)
 grand.avg.localizer.pointsummary <- grand.avg.localizer %>%
   summarySEwithin(
     data = .,
@@ -108,23 +98,8 @@ ggplot(
     group = electrode
   )
 ) +
-  geom_line( # one line per electrode
-    size = 1.2, 
-    color = "#494847",
-    alpha = .8
-  ) +
-  labs(
-    title = "grand average collapsed localizer (all electrodes)", # title & axes labels
-    x = "time (ms)",
-    y = expression(paste("amplitude (", mu, "V)"))
-  ) +
-  scale_x_continuous(breaks = seq(-200, 1000, 100)) + # x-axis: tick marks
-  scale_y_reverse(
-    breaks = seq(-3, 3, 1), # y-axis: tick marks
-    limits = c(3, -3)
-  ) +
   geom_vline( # vertical reference line
-    xintercept = 0, 
+    xintercept = 0,
     linetype = "dashed",
     color = "black",
     size = 1.2,
@@ -150,6 +125,31 @@ ggplot(
     color = "#999999",
     size = .8,
     alpha = .5
+  ) +
+  geom_line( # one line per electrode
+    size = 1.2,
+    color = "#494847",
+    alpha = .8
+  ) +
+  geom_ribbon( # 95% CI
+    aes(
+      ymin = amplitude - ci,
+      ymax = amplitude + ci
+    ),
+    linetype = "dotted",
+    size = .1,
+    alpha = .1,
+    show.legend = FALSE
+  ) +
+  labs(
+    title = "", # title & axes labels
+    x = "time (ms)",
+    y = expression(paste("amplitude (", mu, "V)"))
+  ) +
+  scale_x_continuous(breaks = seq(-200, 1000, 100)) + # x-axis: tick marks
+  scale_y_reverse(
+    breaks = seq(-3, 3, 1), # y-axis: tick marks
+    limits = c(3, -3)
   ) +
   theme_classic(base_size = 20) +
   theme(
@@ -264,16 +264,16 @@ P1.grand.avg.comps.pointsummary <- grand.avg.comps %>% # data frame
     withinvars = c("size", "cont", "emo", "condition", "timepoint"),
     idvar = "participant"
   ) %>%
-  unite(visualfeats, c("size", "cont")) %>% # for graph
-  mutate(visualfeats = as.factor(ifelse(visualfeats == "NA_NA", "localizer", visualfeats)),
+  unite(visualfeats, c("size", "cont"), sep = " ") %>% # for graph
+  mutate(visualfeats = as.factor(ifelse(visualfeats == "NA NA", "localizer", visualfeats)),
     timepoint = as.numeric(levels(timepoint))[timepoint]
   )
 
 # plot waveforms
 ggplot(
   data = filter(
-      P1.grand.avg.comps.pointsummary,
-      condition != "localizer"
+    P1.grand.avg.comps.pointsummary,
+    condition != "localizer"
   ),
   aes(
     x = timepoint,
@@ -282,58 +282,6 @@ ggplot(
     color = visualfeats
   )
 ) +
-  geom_line(
-    size = 2.5,
-    alpha = .6
-  ) +
-  geom_line( # thick black line (localizer)
-    data = filter(
-      P1.grand.avg.comps.pointsummary,
-      visualfeats == "localizer"
-    ),
-    aes(
-      x = timepoint,
-      y = amplitude
-    ),
-    size = 5,
-    show.legend = FALSE,
-    inherit.aes = FALSE
-  ) +
-  geom_ribbon( # localizer 95% CI
-    data = filter(
-        P1.grand.avg.comps.pointsummary,
-        condition == "localizer"
-    ),
-    aes(
-      ymin = amplitude - ci,
-      ymax = amplitude + ci
-    ),
-    linetype = "dotted",
-    size = .1,
-    alpha = .3,
-    show.legend = FALSE
-  ) +
-  scale_color_manual(
-    breaks = c(
-      "localizer", "large_bright", # re-order conditions
-      "large_dark", "small_bright", "small_dark"
-    ),
-    values = waveforms.palette
-  ) + # line colors
-  scale_fill_manual(values = waveforms.palette) + # ribbon colors
-  labs(
-    title = "P1 (66-148 ms)", # title & axes labels
-    x = "time (ms)",
-    y = expression(paste("amplitude (", mu, "V)"))
-  ) +
-  scale_x_continuous(
-    breaks = seq(-200, 1000, 50), # x-axis: tick marks
-    limits = c(-100, 250)
-  ) +
-  scale_y_reverse(
-    breaks = seq(-3, 3, 1), # y-axis: tick marks
-    limits = c(3, -3)
-  ) +
   geom_vline( # vertical reference line
     xintercept = 0,
     linetype = "dashed",
@@ -362,6 +310,58 @@ ggplot(
     size = .8,
     alpha = .5
   ) +
+  geom_line( # one line per condition
+    size = 2.5,
+    alpha = .6
+  ) +
+  geom_line( # thick black line (localizer)
+    data = filter(
+      P1.grand.avg.comps.pointsummary,
+      visualfeats == "localizer"
+    ),
+    aes(
+      x = timepoint,
+      y = amplitude
+    ),
+    size = 5,
+    show.legend = FALSE,
+    inherit.aes = FALSE
+  ) +
+  geom_ribbon( # localizer 95% CI
+    data = filter(
+      P1.grand.avg.comps.pointsummary,
+      visualfeats == "localizer"
+    ),
+    aes(
+      ymin = amplitude - ci,
+      ymax = amplitude + ci
+    ),
+    linetype = "dotted",
+    size = .1,
+    alpha = .3,
+    show.legend = FALSE
+  ) +
+  scale_color_manual(
+    breaks = c(
+      "localizer", "large bright", # re-order conditions
+      "large dark", "small bright", "small dark"
+    ),
+    values = waveforms.palette
+  ) + # line colors
+  scale_fill_manual(values = waveforms.palette) + # ribbon colors
+  labs(
+    title = "P1 (66-148 ms)", # title & axes labels
+    x = "time (ms)",
+    y = expression(paste("amplitude (", mu, "V)"))
+  ) +
+  scale_x_continuous(
+    breaks = seq(-200, 1000, 50), # x-axis: tick marks
+    limits = c(-100, 250)
+  ) +
+  scale_y_reverse(
+    breaks = seq(-3, 3, 1), # y-axis: tick marks
+    limits = c(3, -3)
+  ) +
   annotate("rect", # highlight time window used for analysis
     xmin = 66,
     xmax = 148,
@@ -380,34 +380,6 @@ ggplot(
     ),
     legend.position = "none"
   )
-
-
-#######################################################################
-# - DO ALL WAVEFORMS (NO LEGENDS)
-# - DO ALL PIRATEPLOTS
-# - MERGE WITH COWPLOT OR PATCHWORK
-# - LOAD AND OVERLAY TOPOGRAPHY ON WAVEFORMS
-#######################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ```
 
 ## N1
@@ -415,30 +387,135 @@ ggplot(
 Amplitude extracted from the following electrode cluster: TP7 P7 P9 TP8 P8 P10.
 
 ```{r N1_waveforms}
-# summarized data from each time point, including within-subject 95% CIs
-N1.grand.avg.comps.pointsummary <- grand.avg.comps %>% # data frame
-  filter(elec_cluster == "N1", condition != "negative", condition != "negative minus neutral", condition != "neutral") %>% # filter out useless conditions
-  summarySEwithin(data = ., measurevar = "amplitude", withinvars = c("condition", "timepoint"), idvar = "participant") %>% # summary
-  mutate(timepoint = as.numeric(levels(timepoint))[timepoint]) # re-convert time points to numeric
+N1.grand.avg.comps.pointsummary <- grand.avg.comps %>%
+  filter(
+    elec_cluster == "N1",
+    condition != "negative",
+    condition != "negative minus neutral",
+    condition != "neutral"
+  ) %>%
+  summarySEwithin(
+    data = .,
+    measurevar = "amplitude",
+    withinvars = c("size", "cont", "emo", "condition", "timepoint"),
+    idvar = "participant"
+  ) %>%
+  unite(visualfeats, c("size", "cont"), sep = " ") %>%
+  mutate(visualfeats = as.factor(ifelse(visualfeats == "NA NA", "localizer", visualfeats)),
+    timepoint = as.numeric(levels(timepoint))[timepoint]
+  )
 
 # plot waveforms
-ggplot(filter(N1.grand.avg.comps.pointsummary, condition != "localizer"), aes(x = timepoint, y = amplitude, group = condition, color = condition)) + # basic plot
-  geom_line(aes(color = condition), size = 2.5, alpha = .6) + # one line per condition
-  # geom_ribbon(data=filter(N1.grand.avg.comps.pointsummary, condition!="localizer"), aes(ymin=amplitude-ci, ymax=amplitude+ci, fill=condition), linetype="dotted", size=.1, alpha=.1) + # 95% CI for all conditions (commented out to improve visualization)
-  geom_line(data = filter(N1.grand.avg.comps.pointsummary, condition == "localizer"), size = 5) + # add thick black line for localizer
-  geom_ribbon(data = filter(N1.grand.avg.comps.pointsummary, condition == "localizer"), aes(ymin = amplitude - ci, ymax = amplitude + ci), linetype = "dotted", size = .1, alpha = .3) + # localizer 95% CI
-  scale_color_manual(values = waveforms.palette) + # line colors
-  scale_fill_manual(values = waveforms.palette, guide = FALSE) + # ribbon colors
-  labs(title = "N1 (150-260 ms)", x = "time (ms)", y = expression(paste("amplitude (", mu, "V)"))) + # title & axes labels
-  scale_x_continuous(breaks = seq(-200, 1000, 50), limits = c(-100, 400)) + # x-axis: tick marks
-  scale_y_reverse(breaks = seq(-3, 3, 1), limits = c(3, -3)) + # y-axis: tick marks
-  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1.2, alpha = .8) + # vertical reference line
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1.2, alpha = .8) + # horizontal reference line
-  geom_vline(xintercept = seq(from = -200, to = 1000, by = 50), linetype = "dotted", color = "#999999", size = .8, alpha = .5) + # reference lines
-  geom_hline(yintercept = seq(from = -3, to = 3, by = 1), linetype = "dotted", color = "#999999", size = .8, alpha = .5) + # reference lines
-  annotate("rect", xmin = 150, xmax = 260, ymin = -2.5, ymax = 1, linetype = 2, size = 2, color = "#de1d1d", alpha = 0) + # highlight time window used for analysis
-  guides(color = FALSE) + # delete legend
-  theme_pander(base_size = 20, pc = "white", lp = c(.25, .8)) # custom theme
+ggplot(
+  data = filter(
+    N1.grand.avg.comps.pointsummary,
+    condition != "localizer"
+  ),
+  aes(
+    x = timepoint,
+    y = amplitude,
+    linetype = emo,
+    color = visualfeats
+  )
+) +
+  geom_vline(
+    xintercept = 0,
+    linetype = "dashed",
+    color = "black",
+    size = 1.2,
+    alpha = .8
+  ) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed",
+    color = "black",
+    size = 1.2,
+    alpha = .8
+  ) +
+  geom_vline(
+    xintercept = seq(-200, 1000, 50),
+    linetype = "dotted",
+    color = "#999999",
+    size = .8,
+    alpha = .5
+  ) +
+  geom_hline(
+    yintercept = seq(-3, 3, 1),
+    linetype = "dotted",
+    color = "#999999",
+    size = .8,
+    alpha = .5
+  ) +
+  geom_line(
+    size = 2.5,
+    alpha = .6
+  ) +
+  geom_line(
+    data = filter(
+      N1.grand.avg.comps.pointsummary,
+      visualfeats == "localizer"
+    ),
+    aes(
+      x = timepoint,
+      y = amplitude
+    ),
+    size = 5,
+    show.legend = FALSE,
+    inherit.aes = FALSE
+  ) +
+  geom_ribbon(
+    data = filter(
+      N1.grand.avg.comps.pointsummary,
+      visualfeats == "localizer"
+    ),
+    aes(
+      ymin = amplitude - ci,
+      ymax = amplitude + ci
+    ),
+    linetype = "dotted",
+    size = .1,
+    alpha = .3,
+    show.legend = FALSE
+  ) +
+  scale_color_manual(
+    breaks = c(
+      "localizer", "large bright",
+      "large dark", "small bright", "small dark"
+    ),
+    values = waveforms.palette
+  ) +
+  scale_fill_manual(values = waveforms.palette) +
+  labs(
+    title = "N1 (150-260 ms)",
+    x = "time (ms)",
+    y = expression(paste("amplitude (", mu, "V)"))
+  ) +
+  scale_x_continuous(
+    breaks = seq(-200, 1000, 50),
+    limits = c(-100, 400)
+  ) +
+  scale_y_reverse(
+    breaks = seq(-3, 3, 1),
+    limits = c(3, -3)
+  ) +
+  annotate("rect",
+    xmin = 150,
+    xmax = 260,
+    ymin = -2.5,
+    ymax = 1,
+    linetype = 2,
+    size = 2,
+    color = "#de1d1d",
+    alpha = 0
+  ) +
+  theme_classic(base_size = 20) +
+  theme(
+    plot.title = element_text(
+      size = 28,
+      hjust = .5
+    ),
+    legend.position = "none"
+  )
 ```
 
 ## EPN
@@ -446,9 +523,7 @@ ggplot(filter(N1.grand.avg.comps.pointsummary, condition != "localizer"), aes(x 
 Amplitude extracted from the following electrode cluster: P7 P9 PO7 PO3 O1 Oz Iz O2 PO4 PO8 P8 P10.
 
 ```{r EPN_waveforms}
-# summarized data from each time point, including within-subject 95% CIs
-EPN.grand.avg.comps.pointsummary <- grand.avg.comps %>% # data frame
-  # filter(elec_cluster=="EPN", condition==c("negative", "neutral", "negative minus neutral")) %>% # filter out useless conditions
+EPN.grand.avg.comps.pointsummary <- grand.avg.comps %>%
   filter(
     elec_cluster == "EPN",
     condition == "negative minus neutral" |
@@ -461,26 +536,126 @@ EPN.grand.avg.comps.pointsummary <- grand.avg.comps %>% # data frame
       condition == "neutral small bright" |
       condition == "neutral small dark"
   ) %>%
-  droplevels(.) %>% # drop unused levels
-  summarySEwithin(data = ., measurevar = "amplitude", withinvars = c("condition", "timepoint"), idvar = "participant") %>% # summary
-  mutate(timepoint = as.numeric(levels(timepoint))[timepoint]) # re-convert time points to numeric
+  summarySEwithin(
+    data = .,
+    measurevar = "amplitude",
+    withinvars = c("size", "cont", "emo", "condition", "timepoint"),
+    idvar = "participant"
+  ) %>%
+  unite(visualfeats, c("size", "cont"), sep = " ") %>% # for graph
+  mutate(
+    visualfeats = as.factor(ifelse(visualfeats == "NA NA", "negative minus neutral", visualfeats)),
+    timepoint = as.numeric(levels(timepoint))[timepoint]
+  )
 
-ggplot(EPN.grand.avg.comps.pointsummary, aes(x = timepoint, y = amplitude, group = condition, color = condition)) + # basic plot
-  geom_line(aes(color = condition), size = 2.5, alpha = .6) + # one line per condition
-  geom_line(data = filter(EPN.grand.avg.comps.pointsummary, condition == "negative minus neutral"), size = 5) + # add thick black line for localizer
-  geom_ribbon(data = filter(EPN.grand.avg.comps.pointsummary, condition == "negative minus neutral"), aes(ymin = amplitude - ci, ymax = amplitude + ci), linetype = "dotted", size = .1, alpha = .3) + # localizer 95% CI
-  scale_color_manual(values = waveforms.palette) + # line colors
-  scale_fill_manual(values = waveforms.palette, guide = FALSE) + # ribbon colors
-  labs(title = "EPN (300-500 ms)", x = "time (ms)", y = expression(paste("amplitude (", mu, "V)"))) + # title & axes labels
-  scale_x_continuous(breaks = seq(-200, 1000, 50), limits = c(-100, 600)) + # x-axis: tick marks
-  scale_y_reverse(breaks = seq(-2, 3, 1), limits = c(3, -2)) + # y-axis: tick marks
-  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1.2, alpha = .8) + # vertical reference line
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1.2, alpha = .8) + # horizontal reference line
-  geom_vline(xintercept = seq(from = -200, to = 1000, by = 50), linetype = "dotted", color = "#999999", size = .8, alpha = .5) + # reference lines
-  geom_hline(yintercept = seq(from = -2, to = 3, by = 1), linetype = "dotted", color = "#999999", size = .8, alpha = .5) + # reference lines
-  annotate("rect", xmin = 300, xmax = 500, ymin = -1, ymax = 2, linetype = 2, size = 2, color = "#de1d1d", alpha = 0) + # highlight time window used for analysis
-  guides(color = FALSE) + # delete legend
-  theme_pander(base_size = 20, pc = "white", lp = c(.25, .8)) # custom theme
+# plot waveforms
+ggplot(
+  data = EPN.grand.avg.comps.pointsummary,
+  aes(
+    x = timepoint,
+    y = amplitude,
+    linetype = emo,
+    color = visualfeats
+  )
+) +
+  geom_vline(
+    xintercept = 0,
+    linetype = "dashed",
+    color = "black",
+    size = 1.2,
+    alpha = .8
+  ) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed",
+    color = "black",
+    size = 1.2,
+    alpha = .8
+  ) +
+  geom_vline(
+    xintercept = seq(-200, 1000, 50),
+    linetype = "dotted",
+    color = "#999999",
+    size = .8,
+    alpha = .5
+  ) +
+  geom_hline(
+    yintercept = seq(-3, 3, 1),
+    linetype = "dotted",
+    color = "#999999",
+    size = .8,
+    alpha = .5
+  ) +
+  geom_line(
+    size = 2.5,
+    alpha = .6
+  ) +
+  geom_line(
+    data = filter(
+      EPN.grand.avg.comps.pointsummary,
+      visualfeats == "negative minus neutral"
+    ),
+    aes(
+      x = timepoint,
+      y = amplitude
+    ),
+    size = 5,
+    show.legend = FALSE,
+    inherit.aes = FALSE
+  ) +
+  geom_ribbon(
+    data = filter(
+      EPN.grand.avg.comps.pointsummary,
+      visualfeats == "negative minus neutral"
+    ),
+    aes(
+      ymin = amplitude - ci,
+      ymax = amplitude + ci
+    ),
+    linetype = "dotted",
+    size = .1,
+    alpha = .3,
+    show.legend = FALSE
+  ) +
+  scale_color_manual(
+    breaks = c(
+      "negative minus neutral", "large bright",
+      "large dark", "small bright", "small dark"
+    ),
+    values = waveforms.palette
+  ) +
+  scale_fill_manual(values = waveforms.palette) +
+  labs(
+    title = "EPN (300-500 ms)",
+    x = "time (ms)",
+    y = expression(paste("amplitude (", mu, "V)"))
+  ) +
+  scale_x_continuous(
+    breaks = seq(-200, 1000, 50),
+    limits = c(-100, 600)
+  ) +
+  scale_y_reverse(
+    breaks = seq(-2, 3, 1),
+    limits = c(3, -2)
+  ) +
+  annotate("rect",
+    xmin = 300,
+    xmax = 500,
+    ymin = -1,
+    ymax = 2,
+    linetype = 2,
+    size = 2,
+    color = "#de1d1d",
+    alpha = 0
+  ) +
+theme_classic(base_size = 20) +
+  theme(
+    plot.title = element_text(
+      size = 28,
+      hjust = .5
+    ),
+    legend.position = "none"
+  )
 ```
 
 ## LPP
@@ -488,30 +663,139 @@ ggplot(EPN.grand.avg.comps.pointsummary, aes(x = timepoint, y = amplitude, group
 Amplitude extracted from the following electrode cluster: P1 Pz P2 P4 P6 P8 P10 POz PO4 PO8.
 
 ```{r LPP_waveforms}
-# summarized data from each time point, including within-subject 95% CIs
-LPP.grand.avg.comps.pointsummary <- grand.avg.comps %>% # data frame
-  filter(elec_cluster == "LPP", condition != "negative", condition != "negative minus neutral", condition != "neutral") %>% # filter out useless conditions
-  summarySEwithin(data = ., measurevar = "amplitude", withinvars = c("condition", "timepoint"), idvar = "participant") %>% # summary
-  mutate(timepoint = as.numeric(levels(timepoint))[timepoint]) # re-convert time points to numeric
+LPP.grand.avg.comps.pointsummary <- grand.avg.comps %>%
+    filter(
+    elec_cluster == "LPP",
+    condition == "negative minus neutral" |
+      condition == "negative large bright" |
+      condition == "negative large dark" |
+      condition == "negative small bright" |
+      condition == "negative small dark" |
+      condition == "neutral large bright" |
+      condition == "neutral large dark" |
+      condition == "neutral small bright" |
+      condition == "neutral small dark"
+  ) %>%
+  summarySEwithin(
+    data = .,
+    measurevar = "amplitude",
+    withinvars = c("size", "cont", "emo", "condition", "timepoint"),
+    idvar = "participant"
+  ) %>%
+  unite(visualfeats, c("size", "cont"), sep = " ") %>% # for graph
+  mutate(
+    visualfeats = as.factor(ifelse(visualfeats == "NA NA", "negative minus neutral", visualfeats)),
+    timepoint = as.numeric(levels(timepoint))[timepoint]
+  )
 
 # plot waveforms
-ggplot(filter(LPP.grand.avg.comps.pointsummary, condition != "localizer"), aes(x = timepoint, y = amplitude, group = condition, color = condition)) + # basic plot
-  geom_line(aes(color = condition), size = 2.5, alpha = .6) + # one line per condition
-  # geom_ribbon(data=filter(LPP.grand.avg.comps.pointsummary, condition!="localizer"), aes(ymin=amplitude-ci, ymax=amplitude+ci, fill=condition), linetype="dotted", size=.1, alpha=.1) + # 95% CI for all conditions (commented out to improve visualization)
-  geom_line(data = filter(LPP.grand.avg.comps.pointsummary, condition == "localizer"), size = 5) + # add thick black line for localizer
-  geom_ribbon(data = filter(LPP.grand.avg.comps.pointsummary, condition == "localizer"), aes(ymin = amplitude - ci, ymax = amplitude + ci), linetype = "dotted", size = .1, alpha = .3) + # localizer 95% CI
-  scale_color_manual(values = waveforms.palette) + # line colors
-  scale_fill_manual(values = waveforms.palette, guide = FALSE) + # ribbon colors
-  labs(title = "LPP (402-684 ms)", x = "time (ms)", y = expression(paste("amplitude (", mu, "V)"))) + # title & axes labels
-  scale_x_continuous(breaks = seq(-200, 1000, 50), limits = c(-100, 800)) + # x-axis: tick marks
-  scale_y_reverse(breaks = seq(-2, 3, 1), limits = c(3, -2)) + # y-axis: tick marks
-  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 1.2, alpha = .8) + # vertical reference line
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1.2, alpha = .8) + # horizontal reference line
-  geom_vline(xintercept = seq(from = -200, to = 800, by = 50), linetype = "dotted", color = "#999999", size = .8, alpha = .5) + # reference lines
-  geom_hline(yintercept = seq(from = -2, to = 3, by = 1), linetype = "dotted", color = "#999999", size = .8, alpha = .5) + # reference lines
-  annotate("rect", xmin = 402, xmax = 684, ymin = -.5, ymax = 2.5, linetype = 2, size = 2, color = "#de1d1d", alpha = 0) + # highlight time window used for analysis
-  guides(color = FALSE) + # delete legend
-  theme_pander(base_size = 20, pc = "white", lp = c(.25, .8)) # custom theme
+ggplot(
+  data = LPP.grand.avg.comps.pointsummary,
+  aes(
+    x = timepoint,
+    y = amplitude,
+    linetype = emo,
+    color = visualfeats
+  )
+) +
+  geom_vline(
+    xintercept = 0,
+    linetype = "dashed",
+    color = "black",
+    size = 1.2,
+    alpha = .8
+  ) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed",
+    color = "black",
+    size = 1.2,
+    alpha = .8
+  ) +
+  geom_vline(
+    xintercept = seq(-200, 1000, 50),
+    linetype = "dotted",
+    color = "#999999",
+    size = .8,
+    alpha = .5
+  ) +
+  geom_hline(
+    yintercept = seq(-3, 3, 1),
+    linetype = "dotted",
+    color = "#999999",
+    size = .8,
+    alpha = .5
+  ) +
+  geom_line(
+    size = 2.5,
+    alpha = .6
+  ) +
+  geom_line(
+    data = filter(
+      LPP.grand.avg.comps.pointsummary,
+      visualfeats == "negative minus neutral"
+    ),
+    aes(
+      x = timepoint,
+      y = amplitude
+    ),
+    size = 5,
+    show.legend = FALSE,
+    inherit.aes = FALSE
+  ) +
+  geom_ribbon(
+    data = filter(
+      LPP.grand.avg.comps.pointsummary,
+      visualfeats == "negative minus neutral"
+    ),
+    aes(
+      ymin = amplitude - ci,
+      ymax = amplitude + ci
+    ),
+    linetype = "dotted",
+    size = .1,
+    alpha = .3,
+    show.legend = FALSE
+  ) +
+  scale_color_manual(
+    breaks = c(
+      "negative minus neutral", "large bright",
+      "large dark", "small bright", "small dark"
+    ),
+    values = waveforms.palette
+  ) +
+  scale_fill_manual(values = waveforms.palette) +
+  labs(
+    title = "LPP (402-684 ms)",
+    x = "time (ms)",
+    y = expression(paste("amplitude (", mu, "V)"))
+  ) +
+  scale_x_continuous(
+    breaks = seq(-200, 1000, 50),
+    limits = c(-100, 800)
+  ) +
+  scale_y_reverse(
+    breaks = seq(-2, 3, 1),
+    limits = c(3, -2)
+  ) +
+  annotate("rect",
+    xmin = 402,
+    xmax = 684,
+    ymin = -.5,
+    ymax = 2.5,
+    linetype = 2,
+    size = 2,
+    color = "#de1d1d",
+    alpha = 0
+  ) +
+  theme_classic(base_size = 20) +
+  theme(
+    plot.title = element_text(
+      size = 28,
+      hjust = .5
+    ),
+    legend.position = "none"
+  )
 ```
 
 ***
