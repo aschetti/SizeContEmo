@@ -66,7 +66,9 @@ scaling.factor <- c(.5, .707, 1) # scaling factors of JZS prior: narrow, medium,
 
 # GRAPHS
 
-Butterfly plot.
+## WAVEFORMS
+
+### Butterfly plot
 
 ```{r graph_grandavg}
 grand.avg.localizer <- read_csv(here::here("/EEG/main/main_grandEEG_localizer.csv")) %>%
@@ -155,18 +157,20 @@ ggplot(
   theme(
     plot.title = element_text(
       size = 28,
-      hjust = .5
+      hjust = .5,
+      face = "bold"
     ),
     legend.position = "none"
   )
 ```
+
+Prepare data for visualization and analysis of amplitude components.
 
 ```{r data_grandavg_comps}
 grand.avg.comps <- read_csv(here::here("/EEG/main/main_avgERP.csv")) %>%
   gather( # convert to long format
     key = timepoint,
     value = amplitude,
-    # convert = TRUE, # convert time points to numeric
     -c(participant, elec_cluster, condition)
   ) %>%
   # rename levels
@@ -245,7 +249,7 @@ grand.avg.comps <- read_csv(here::here("/EEG/main/main_avgERP.csv")) %>%
   )
 ```
 
-## P1
+### P1
 
 Amplitude extracted from the following electrode cluster: P7 P9 PO7 O1 O2 PO8 P8 P10.
 
@@ -376,13 +380,14 @@ ggplot(
   theme(
     plot.title = element_text(
       size = 28,
-      hjust = .5
+      hjust = .5,
+      face = "bold"
     ),
     legend.position = "none"
   )
 ```
 
-## N1
+### N1
 
 Amplitude extracted from the following electrode cluster: TP7 P7 P9 TP8 P8 P10.
 
@@ -512,13 +517,14 @@ ggplot(
   theme(
     plot.title = element_text(
       size = 28,
-      hjust = .5
+      hjust = .5,
+      face = "bold"
     ),
     legend.position = "none"
   )
 ```
 
-## EPN
+### EPN
 
 Amplitude extracted from the following electrode cluster: P7 P9 PO7 PO3 O1 Oz Iz O2 PO4 PO8 P8 P10.
 
@@ -652,13 +658,14 @@ theme_classic(base_size = 20) +
   theme(
     plot.title = element_text(
       size = 28,
-      hjust = .5
+      hjust = .5,
+      face = "bold"
     ),
     legend.position = "none"
   )
 ```
 
-## LPP
+### LPP
 
 Amplitude extracted from the following electrode cluster: P1 Pz P2 P4 P6 P8 P10 POz PO4 PO8.
 
@@ -792,11 +799,211 @@ ggplot(
   theme(
     plot.title = element_text(
       size = 28,
-      hjust = .5
+      hjust = .5,
+      face = "bold"
     ),
     legend.position = "none"
   )
 ```
+
+## TOPOGRAPHIES
+
+```{r data_topo}
+# load electrode locations
+electrodeLocs <- read_delim(here::here("/EEG/main/elecLocs_BioSemi64.locs"),
+  "\t",
+  col_names = c("chanNo", "theta", "radius", "electrode"),
+  escape_double = FALSE, trim_ws = TRUE
+) %>%
+  mutate(
+    radianTheta = pi / 180 * theta, # convert theta values from degrees to radians
+    # Cartesian coordinates
+    x = radius * sin(radianTheta),
+    y = radius * cos(radianTheta)
+  ) %>%
+  .[order(.$electrode, decreasing = FALSE), ] # re-order according to topos
+
+# load topographies
+topos <- read_csv(paste0(getwd(), "/EEG/main/main_topoEEG.csv")) %>%
+  group_by(bin, electrode) %>% # average across participants
+  dplyr::summarize(
+    P1 = mean(P1),
+    N1 = mean(N1),
+    EPN = mean(EPN),
+    LPP = mean(LPP)
+  ) 
+```
+
+### P1
+
+```{r P1_topo}
+topos %>%
+  dplyr::filter(bin == "localizer") %>%
+  dplyr::select(electrode, amplitude = "P1") %>%
+  bind_cols(., electrodeLocs) %>% # bind electrode locations and amplitudes (necessary)
+  topoplot(.,
+           limits = c(-.8, .8), # min-max amplitude
+           chanLocs = electrodeLocs,
+           method = "Biharmonic",
+           palette = "viridis",
+           interp_limit = "skirt",
+           contour = TRUE,
+           chan_marker = "point",
+           quantity = "amplitude"
+  ) +
+  ggtitle("P1") +
+  theme(
+    plot.title = element_text(size = 28, 
+                              hjust = .5, 
+                              face = "bold"),
+    plot.margin = unit(c(6, 0, 6, 0), "pt") # decrease plot margins
+  )
+```
+
+### N1
+
+```{r N1_topo}
+topos %>%
+  dplyr::filter(bin == "localizer") %>%
+  dplyr::select(electrode, amplitude = "N1") %>%
+  bind_cols(., electrodeLocs) %>%
+  topoplot(.,
+           limits = c(-.8, .8), # min-max amplitude
+           chanLocs = electrodeLocs,
+           method = "Biharmonic",
+           palette = "viridis",
+           interp_limit = "skirt",
+           contour = TRUE,
+           chan_marker = "point",
+           quantity = "amplitude"
+  ) +
+  ggtitle("N1") +
+  theme(
+    plot.title = element_text(size = 28, 
+                              hjust = .5, 
+                              face = "bold"),
+    plot.margin = unit(c(6, 0, 6, 0), "pt") # decrease plot margins
+  )
+```
+
+### EPN
+
+```{r EPN_topo}
+topos %>%
+  dplyr::filter(bin == "localizer") %>%
+  dplyr::select(electrode, amplitude = "EPN") %>%
+  bind_cols(., electrodeLocs) %>%
+  topoplot(.,
+           limits = c(-1, 1), # min-max amplitude
+           chanLocs = electrodeLocs,
+           method = "Biharmonic",
+           palette = "viridis",
+           interp_limit = "skirt",
+           contour = TRUE,
+           chan_marker = "point",
+           quantity = "amplitude"
+  ) +
+  ggtitle("EPN") +
+  theme(
+    plot.title = element_text(size = 28, 
+                              hjust = .5, 
+                              face = "bold"),
+    plot.margin = unit(c(6, 0, 6, 0), "pt") # decrease plot margins
+  )
+```  
+
+Because the topography differ from the classical EPN topography published in the literature, we identified this component by calculating the difference between negative and neutral conditions (averaged across size and contrast). This is in accordance with our pre-registered protocol.   
+   
+Note that this was not necessary when identifying the LPP. 
+
+```{r EPN_topo_NegMinNeut}
+topos %>%
+  dplyr::filter(bin == "NegMinNeut") %>%
+  dplyr::select(electrode, amplitude = "EPN") %>%
+  bind_cols(., electrodeLocs) %>%
+  topoplot(.,
+           limits = c(-.25, .25), # min-max amplitude
+           chanLocs = electrodeLocs,
+           method = "Biharmonic",
+           palette = "viridis",
+           interp_limit = "skirt",
+           contour = TRUE,
+           chan_marker = "point",
+           quantity = "amplitude"
+  ) +
+  ggtitle("EPN") +
+  theme(
+    plot.title = element_text(size = 28, 
+                              hjust = .5, 
+                              face = "bold"),
+    plot.margin = unit(c(6, 0, 6, 0), "pt") # decrease plot margins
+  )
+```  
+
+### LPP
+
+```{r LPP_topo}
+topos %>%
+  dplyr::filter(bin == "localizer") %>%
+  dplyr::select(electrode, amplitude = "LPP") %>%
+  bind_cols(., electrodeLocs) %>%
+  topoplot(.,
+           limits = c(-1, 1), # min-max amplitude
+           chanLocs = electrodeLocs,
+           method = "Biharmonic",
+           palette = "viridis",
+           interp_limit = "skirt",
+           contour = TRUE,
+           chan_marker = "point",
+           quantity = "amplitude"
+  ) +
+  ggtitle("LPP") +
+  theme(
+    plot.title = element_text(size = 28, 
+                              hjust = .5, 
+                              face = "bold"),
+    plot.margin = unit(c(6, 0, 6, 0), "pt") # decrease plot margins
+  )
+```  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ***
 ***
