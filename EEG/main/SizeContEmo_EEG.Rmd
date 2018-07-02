@@ -2324,15 +2324,191 @@ compare.LPP <- compare.LPP[order(compare.LPP$med, decreasing = TRUE), ]
 kable(format(compare.LPP, scientific = TRUE))
 ```
 
+When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model `r ifelse(compare.LPP[1, 4]<1, "null", as.character(compare.LPP[1, 1]))` ought to be preferred.   
+The best model (`r as.character(compare.LPP[1, 1])`) explains the observed data `r format(ifelse(compare.LPP[1, 4]>1, compare.LPP[1, 4]/compare.LPP[2, 4], 1/compare.LPP[1, 4]), scientific = TRUE)` times better than the second best model (`r as.character(compare.LPP[2, 1])`).
 
+### Paired comparisons
 
+```{r LPP_posthoc}
+# interactions of interest (i.e., always negative vs. neutral)
+LPP.posthocBF <- data.EEG.trial %>%
+  select(participant, cond, LPP) %>%
+  summarySEwithin(data = ., measurevar = "LPP", withinvars = c("participant", "cond")) %>%
+  split(.$cond) # split according to condition
 
+# preallocate matrix with all BF10
+compare.LPP.posthocBF <- matrix(NA, 4, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.LPP.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor)) 
 
+# ### uncomment to recompute models ###
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# 
+#   ### large, dark, negative vs. neutral
+#   LPP.posthocBF.large.dark.negVSneut <- ttestBF(
+#     LPP.posthocBF$`negative large dark`$LPP, # first condition
+#     LPP.posthocBF$`neutral large dark`$LPP, # second condition
+#     mu = 0, # null hypothesis (mean difference = 0)
+#     paired = TRUE, # paired sample test
+#     iterations = niter, # number of MCMC iterations
+#     rscale = scaling.factor[k] # scaling factor
+#   )
+# 
+#   saveRDS(LPP.posthocBF.large.dark.negVSneut, # save model
+#           file = paste0(getwd(), "/EEG/main/models/LPP_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds"))
+# 
+#   ### small, dark, negative vs. neutral
+#   LPP.posthocBF.small.dark.negVSneut <- ttestBF(
+#     LPP.posthocBF$`negative small dark`$LPP,
+#     LPP.posthocBF$`neutral small dark`$LPP,
+#     mu = 0,
+#     paired = TRUE,
+#     iterations = niter,
+#     rscale = scaling.factor[k]
+#   )
+# 
+#   saveRDS(LPP.posthocBF.small.dark.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/LPP_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds"))
+# 
+#   ### large, bright, negative vs. neutral
+#   LPP.posthocBF.large.bright.negVSneut <- ttestBF(
+#     LPP.posthocBF$`negative large bright`$LPP,
+#     LPP.posthocBF$`neutral large bright`$LPP,
+#     mu = 0,
+#     paired = TRUE,
+#     iterations = niter,
+#     rscale = scaling.factor[k]
+#   )
+# 
+#   saveRDS(LPP.posthocBF.large.bright.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/LPP_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds"))
+# 
+#   ### small, bright, negative vs. neutral
+#   LPP.posthocBF.small.bright.negVSneut <- ttestBF(
+#     LPP.posthocBF$`negative small bright`$LPP,
+#     LPP.posthocBF$`neutral small bright`$LPP,
+#     mu = 0,
+#     iterations = niter,
+#     paired = TRUE,
+#     rscale = scaling.factor[k]
+#   )
+# 
+#   saveRDS(LPP.posthocBF.small.bright.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/LPP_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds"))
+# 
+# }
 
+### model comparison across scaling factors
+for (k in 1:length(scaling.factor)) {
+  
+  ### load models
+  LPP.posthocBF.large.dark.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds"))
+  
+  LPP.posthocBF.small.dark.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds"))
+  
+  LPP.posthocBF.large.bright.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds"))
+  
+  LPP.posthocBF.small.bright.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds"))
+  
+  ### model comparison
+  compare.LPP.posthocBF[, k] <- c(
+    exp(LPP.posthocBF.large.dark.negVSneut@bayesFactor$bf[1]),
+    exp(LPP.posthocBF.small.dark.negVSneut@bayesFactor$bf[1]),
+    exp(LPP.posthocBF.large.bright.negVSneut@bayesFactor$bf[1]),
+    exp(LPP.posthocBF.small.bright.negVSneut@bayesFactor$bf[1])
+  )
 
+  # percentage of error
+  compare.LPP.posthocBF.perc.err[, k] <- c(
+    LPP.posthocBF.large.dark.negVSneut@bayesFactor$error[1] * 100,
+    LPP.posthocBF.small.dark.negVSneut@bayesFactor$error[1] * 100,
+    LPP.posthocBF.large.bright.negVSneut@bayesFactor$error[1] * 100,
+    LPP.posthocBF.small.bright.negVSneut@bayesFactor$error[1] * 100
+  )
+}
 
+# summary
+compare.LPP.posthocBF <- data.frame(
+  "comparison" = c("large.dark.negVSneut", "small.dark.negVSneut", "large.bright.negVSneut", "small.bright.negVSneut"),
+  "nar" = compare.LPP.posthocBF[, 1], "nar.p.err" = compare.LPP.posthocBF.perc.err[, 1],
+  "med" = compare.LPP.posthocBF[, 2], "med.p.err" = compare.LPP.posthocBF.perc.err[, 2],
+  "wid" = compare.LPP.posthocBF[, 3], "wid.p.err" = compare.LPP.posthocBF.perc.err[, 3]
+)
 
+# nicer table
+kable(format(compare.LPP.posthocBF, scientific = TRUE), digits = 2)
+```
 
+Follow-up contrasts reveal that *emotion* does not explain changes in LPP amplitude.
+
+### Exploratory model selection
+
+```{r LPP_expl_modelselect}
+# preallocate matrix with all BF10
+compare.LPP.anovaBF.temp <- matrix(NA, 7, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.LPP.anovaBF.perc.err.temp <- matrix(NA, 7, length(scaling.factor))
+
+# ### uncomment to recompute models ###
+# ### How important is each effect/interaction if we remove it from the full model?
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# 
+#   LPP.anovaBF <- anovaBF(
+#     LPP ~ size * cont * emo, # formula
+#     data.EEG.trial, # data
+#     whichModels = "top", # test all models created by removing a main effect or interaction from the full model
+#     whichRandom = c("participant", "word"), # random effects
+#     rscaleFixed = scaling.factor[k], # scaling factor of prior on effect size
+#     rscaleRandom = "nuisance", # prior scale for standardized random effects
+#     iterations = niter # number of MCMC iterations
+#   )
+#   
+#   saveRDS(LPP.anovaBF,
+#           file = paste0(getwd(), "/EEG/main/models/LPP_anovaBF_", scaling.factor[k], ".rds"))
+# 
+# }
+
+### model comparison across scaling factors
+for (k in 1:length(scaling.factor)) {
+  
+  ### load model
+  LPP.anovaBF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_anovaBF_", scaling.factor[k], ".rds"))
+  
+  # BFs
+  compare.LPP.anovaBF.temp[, k] <- exp(LPP.anovaBF@bayesFactor$bf)
+  
+  # percentage of error
+  compare.LPP.anovaBF.perc.err.temp[, k] <- LPP.anovaBF@bayesFactor$error * 100
+  
+}
+
+# summary exploratory analysis
+compare.LPP.anovaBF <- data.frame(
+  "omit from full model" = c("cont:emo:size", "cont:emo", "emo:size", "cont:size", "emo", "cont", "size"),
+  "nar" = compare.LPP.anovaBF.temp[, 1], "nar.p.err" = compare.LPP.anovaBF.perc.err.temp[, 1],
+  "med" = compare.LPP.anovaBF.temp[, 2], "med.p.err" = compare.LPP.anovaBF.perc.err.temp[, 2],
+  "wid" = compare.LPP.anovaBF.temp[, 3], "wid.p.err" = compare.LPP.anovaBF.perc.err.temp[, 3]
+)
+
+# sort according to medium scaling factor (in descending order)
+compare.LPP.anovaBF <- compare.LPP.anovaBF[order(compare.LPP.anovaBF$med, decreasing = TRUE), ]
+
+# nicer table
+kable(format(compare.LPP.anovaBF, scientific = TRUE), digits = 2)
+```
+
+Exploratory analyses further suggest that omitting the factor *emotion* from the full model improves fitting by `r compare.LPP.anovaBF$med[1]` times. Removing *contrast x emotion*, *size x emotion*, and *size x contrast x emotion* also improves fitting by `r compare.LPP.anovaBF$med[2]`, `r compare.LPP.anovaBF$med[3]`, `r compare.LPP.anovaBF$med[4]` times, respectively.   
+Conversely, omitting the *contrast x size* interaction or the factor *contrast* lowers the explanatory value of the resulting model by `r 1/compare.LPP.anovaBF$med[5]` and `r format(1/compare.LPP.anovaBF$med[6], scientific = TRUE)` times, respectively. Finally, omitting the factor *size* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r format(1/compare.LPP.anovaBF$med[7], scientific = TRUE)` times.
+
+***
+***
+
+# SUPPLEMENTARY ANALYSIS
 
 
 
