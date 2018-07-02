@@ -2510,296 +2510,14 @@ Conversely, omitting the *contrast x size* interaction or the factor *contrast* 
 
 # SUPPLEMENTARY ANALYSIS
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## LPP
-
-```{r LPP_summary}
-# summarize data
-summary.LPP <- summarySEwithin(data.EEG.trial, "LPP", withinvars = c("size", "cont", "emo"), idvar = "participant")
-kable(summary.LPP, digits = 2)
-```
-
-```{r LPP_models}
-# preallocate matrices with all BFs
-compare.LPP.BF <- matrix(NA, 6, length(scaling.factor)) # BFs
-compare.LPP.perc.err <- matrix(NA, 6, length(scaling.factor)) # % errors
-
-for (k in 1:length(scaling.factor)) { # loop through scaling factors
-
-  ### main effects of size and emotion
-  # LPP.sizeplusemo.BF <- lmBF(LPP~size+emo, # formula
-  #                           data.EEG.trial, # data
-  #                           whichRandom=c("participant", "word"), # random effects
-  #                           rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                           rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                           rscaleCont="medium", # prior scale for standardized slopes
-  #                           iterations=niter) # number of MCMC iterations
-  # saveRDS(LPP.sizeplusemo.BF, file=paste0(wd, "/models/LPP_sizeplusemo_BF_", scaling.factor[k], ".rds")) # save model
-  LPP.sizeplusemo.BF <- readRDS(paste0(wd, "/models/LPP_sizeplusemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### interactive effects of size and emotion
-  # LPP.sizebyemo.BF <- lmBF(LPP~size*emo,
-  #                         data.EEG.trial,
-  #                         whichRandom=c("participant", "word"), # random effects
-  #                         rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                         rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                         rscaleCont="medium", # prior scale for standardized slopes
-  #                         iterations=niter) # number of MCMC iterations
-  # saveRDS(LPP.sizebyemo.BF, file=paste0(wd, "/models/LPP_sizebyemo_BF_", scaling.factor[k], ".rds")) # save model
-  LPP.sizebyemo.BF <- readRDS(paste0(wd, "/models/LPP_sizebyemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### main effects of contrast and emotion
-  # LPP.contplusemo.BF <- lmBF(LPP~cont+emo,
-  #                           data.EEG.trial,
-  #                           whichRandom=c("participant", "word"), # random effects
-  #                           rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                           rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                           rscaleCont="medium", # prior scale for standardized slopes
-  #                           iterations=niter) # number of MCMC iterations
-  # saveRDS(LPP.contplusemo.BF, file=paste0(wd, "/models/LPP_contplusemo_BF_", scaling.factor[k], ".rds")) # save model
-  LPP.contplusemo.BF <- readRDS(paste0(wd, "/models/LPP_contplusemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### interactive effects of contrast and emotion
-  # LPP.contbyemo.BF <- lmBF(LPP~cont*emo,
-  #                         data.EEG.trial,
-  #                         whichRandom=c("participant", "word"), # random effects
-  #                         rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                         rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                         rscaleCont="medium", # prior scale for standardized slopes
-  #                         iterations=niter) # number of MCMC iterations
-  # saveRDS(LPP.contbyemo.BF, file=paste0(wd, "/models/LPP_contbyemo_BF_", scaling.factor[k], ".rds")) # save model
-  LPP.contbyemo.BF <- readRDS(paste0(wd, "/models/LPP_contbyemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### main effects of size, contrast, and emotion
-  # LPP.sizepluscontplusemo.BF <- lmBF(LPP~size+cont+emo,
-  #                                   data.EEG.trial,
-  #                                   whichRandom=c("participant", "word"), # random effects
-  #                                   rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                                   rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                                   rscaleCont="medium", # prior scale for standardized slopes
-  #                                   iterations=niter) # number of MCMC iterations
-  # saveRDS(LPP.sizepluscontplusemo.BF, file=paste0(wd, "/models/LPP_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) # save model
-  LPP.sizepluscontplusemo.BF <- readRDS(paste0(wd, "/models/LPP_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### interactive effects of size, contrast, and emotion
-  # LPP.sizebycontbyemo.BF <- lmBF(LPP~size*cont*emo,
-  #                               data.EEG.trial,
-  #                               whichRandom=c("participant", "word"), # random effects
-  #                               rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                               rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                               rscaleCont="medium", # prior scale for standardized slopes
-  #                               iterations=niter) # number of MCMC iterations
-  # saveRDS(LPP.sizebycontbyemo.BF, file=paste0(wd, "/models/LPP_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) # save model
-  LPP.sizebycontbyemo.BF <- readRDS(paste0(wd, "/models/LPP_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### model comparison across scaling factors
-  # BFs
-  compare.LPP.BF[, k] <- c(
-    exp(LPP.sizeplusemo.BF@bayesFactor$bf[1]),
-    exp(LPP.sizebyemo.BF@bayesFactor$bf[1]),
-    exp(LPP.contplusemo.BF@bayesFactor$bf[1]),
-    exp(LPP.contbyemo.BF@bayesFactor$bf[1]),
-    exp(LPP.sizepluscontplusemo.BF@bayesFactor$bf[1]),
-    exp(LPP.sizebycontbyemo.BF@bayesFactor$bf[1])
-  )
-  # percentage of error
-  compare.LPP.perc.err[, k] <- c(
-    LPP.sizeplusemo.BF@bayesFactor$error[1] * 100,
-    LPP.sizebyemo.BF@bayesFactor$error[1] * 100,
-    LPP.contplusemo.BF@bayesFactor$error[1] * 100,
-    LPP.contbyemo.BF@bayesFactor$error[1] * 100,
-    LPP.sizepluscontplusemo.BF@bayesFactor$error[1] * 100,
-    LPP.sizebycontbyemo.BF@bayesFactor$error[1] * 100
-  )
-}
-
-# summary confirmatory analysis
-compare.LPP <- data.frame(
-  "model" = c("size + emo", "size x emo", "contr + emo", "cont x emo", "size + cont + emo", "size x cont x emo"),
-  "nar" = compare.LPP.BF[, 1], "nar.p.err" = compare.LPP.perc.err[, 1],
-  "med" = compare.LPP.BF[, 2], "med.p.err" = compare.LPP.perc.err[, 2],
-  "wid" = compare.LPP.BF[, 3], "wid.p.err" = compare.LPP.perc.err[, 3]
-)
-compare.LPP <- compare.LPP[order(compare.LPP$med, decreasing = TRUE), ] # sort according to medium scaling factor (in descending order)
-kable(format(compare.LPP, scientific = TRUE))
-```
-
-When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model `r ifelse(compare.LPP[1, 4]<1, "null", as.character(compare.LPP[1, 1]))` ought to be preferred.   
-The best model (`r as.character(compare.LPP[1, 1])`) explains the observed data `r format(ifelse(compare.LPP[1, 4]>1, compare.LPP[1, 4]/compare.LPP[2, 4], 1/compare.LPP[1, 4]), scientific=TRUE)` times better than the second best model (`r as.character(compare.LPP[2, 1])`).   
-
-### Paired comparisons
-
-```{r LPP_posthoc}
-# interactions of interest (i.e., always negative vs. neutral)
-LPP.posthocBF <- data.EEG.trial %>% # data frame
-  select(participant, cond, LPP) %>% # select only variables of interest
-  summarySEwithin(data = ., measurevar = "LPP", withinvars = c("participant", "cond")) %>% # summary
-  split(.$cond) # split according to condition
-
-compare.LPP.posthocBF <- matrix(NA, 4, length(scaling.factor)) # preallocate matrix with all BF10
-compare.LPP.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor)) # preallocate matrix with all % errors
-
-for (k in 1:length(scaling.factor)) { # loop through scaling factors
-
-  # large, dark, negative vs. neutral
-  # LPP.posthocBF.large.dark.negVSneut <- ttestBF(LPP.posthocBF$`negative large dark`$LPP, # first condition
-  #                                              LPP.posthocBF$`neutral large dark`$LPP, # second condition
-  #                                              mu=0, # null hypothesis (mean difference=0)
-  #                                              paired=TRUE, # paired sample test
-  #                                              iterations=niter, # number of MCMC iterations
-  #                                              rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(LPP.posthocBF.large.dark.negVSneut, file=paste0(wd, "/models/LPP_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds")) # save model
-  LPP.posthocBF.large.dark.negVSneut <- readRDS(paste0(wd, "/models/LPP_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds")) # load model
-
-  # small, dark, negative vs. neutral
-  # LPP.posthocBF.small.dark.negVSneut <- ttestBF(LPP.posthocBF$`negative small dark`$LPP, # first condition
-  #                                              LPP.posthocBF$`neutral small dark`$LPP, # second condition
-  #                                              mu=0, # null hypothesis (mean difference=0)
-  #                                              paired=TRUE, # paired sample test
-  #                                              iterations=niter, # number of MCMC iterations
-  #                                              rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(LPP.posthocBF.small.dark.negVSneut, file=paste0(wd, "/models/LPP_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds")) # save model
-  LPP.posthocBF.small.dark.negVSneut <- readRDS(paste0(wd, "/models/LPP_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds")) # load model
-
-  # large, bright, negative vs. neutral
-  # LPP.posthocBF.large.bright.negVSneut <- ttestBF(LPP.posthocBF$`negative large bright`$LPP, # first condition
-  #                                                LPP.posthocBF$`neutral large bright`$LPP, # second condition
-  #                                                mu=0, # null hypothesis (mean difference=0)
-  #                                                paired=TRUE, # paired sample test
-  #                                                iterations=niter, # number of MCMC iterations
-  #                                                rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(LPP.posthocBF.large.bright.negVSneut, file=paste0(wd, "/models/LPP_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds")) # save model
-  LPP.posthocBF.large.bright.negVSneut <- readRDS(paste0(wd, "/models/LPP_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds")) # load model
-
-  # small, bright, negative vs. neutral
-  # LPP.posthocBF.small.bright.negVSneut <- ttestBF(LPP.posthocBF$`negative small bright`$LPP, # first condition
-  #                                                LPP.posthocBF$`neutral small bright`$LPP, # second condition
-  #                                                mu=0, # null hypothesis (mean difference=0)
-  #                                                iterations=niter, # number of MCMC iterations
-  #                                                paired=TRUE, # paired sample test
-  #                                                rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(LPP.posthocBF.small.bright.negVSneut, file=paste0(wd, "/models/LPP_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds")) # save model
-  LPP.posthocBF.small.bright.negVSneut <- readRDS(paste0(wd, "/models/LPP_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds")) # load model
-
-  ### model comparison
-  compare.LPP.posthocBF[, k] <- c(
-    exp(LPP.posthocBF.large.dark.negVSneut@bayesFactor$bf[1]),
-    exp(LPP.posthocBF.small.dark.negVSneut@bayesFactor$bf[1]),
-    exp(LPP.posthocBF.large.bright.negVSneut@bayesFactor$bf[1]),
-    exp(LPP.posthocBF.small.bright.negVSneut@bayesFactor$bf[1])
-  )
-
-  # percentage of error
-  compare.LPP.posthocBF.perc.err[, k] <- c(
-    LPP.posthocBF.large.dark.negVSneut@bayesFactor$error[1] * 100,
-    LPP.posthocBF.small.dark.negVSneut@bayesFactor$error[1] * 100,
-    LPP.posthocBF.large.bright.negVSneut@bayesFactor$error[1] * 100,
-    LPP.posthocBF.small.bright.negVSneut@bayesFactor$error[1] * 100
-  )
-}
-
-# summary
-compare.LPP.posthocBF <- data.frame(
-  "comparison" = c("large.dark.negVSneut", "small.dark.negVSneut", "large.bright.negVSneut", "small.bright.negVSneut"),
-  "nar" = compare.LPP.posthocBF[, 1], "nar.p.err" = compare.LPP.posthocBF.perc.err[, 1],
-  "med" = compare.LPP.posthocBF[, 2], "med.p.err" = compare.LPP.posthocBF.perc.err[, 2],
-  "wid" = compare.LPP.posthocBF[, 3], "wid.p.err" = compare.LPP.posthocBF.perc.err[, 3]
-)
-kable(format(compare.LPP.posthocBF, scientific = TRUE), digits = 2)
-```
-
-Follow-up contrasts reveal that *emotion* does not explain changes in LPP amplitude.
-
-### Exploratory model selection
-
-```{r LPP_expl_modelselect}
-# preallocate matrices with all BFs
-compare.LPP.anovaBF.temp <- matrix(NA, 7, length(scaling.factor)) # BFs
-compare.LPP.anovaBF.perc.err.temp <- matrix(NA, 7, length(scaling.factor)) # % errors
-
-for (k in 1:length(scaling.factor)) { # loop through scaling factors
-
-  # How important is each effect/interaction if we remove it from the full model?
-  # LPP.anovaBF <- anovaBF(LPP~size*cont*emo, # formula
-  #                       data.EEG.trial, # data
-  #                       whichModels="top", # test all models created by removing a main effect or interaction from the full model
-  #                       whichRandom=c("participant", "word"), # random effects
-  #                       rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                       rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                       iterations=niter) # number of MCMC iterations
-  # saveRDS(LPP.anovaBF, file=paste0(wd, "/models/LPP_anovaBF_", scaling.factor[k], ".rds")) # save model
-  LPP.anovaBF <- readRDS(paste0(wd, "/models/LPP_anovaBF_", scaling.factor[k], ".rds")) # load model
-
-  ### model comparison across scaling factors
-  # BFs
-  compare.LPP.anovaBF.temp[, k] <- exp(LPP.anovaBF@bayesFactor$bf)
-  # percentage of error
-  compare.LPP.anovaBF.perc.err.temp[, k] <- LPP.anovaBF@bayesFactor$error * 100
-}
-
-# summary exploratory analysis
-compare.LPP.anovaBF <- data.frame(
-  "omit from full model" = c("cont:emo:size", "cont:emo", "emo:size", "cont:size", "emo", "cont", "size"),
-  "nar" = compare.LPP.anovaBF.temp[, 1], "nar.p.err" = compare.LPP.anovaBF.perc.err.temp[, 1],
-  "med" = compare.LPP.anovaBF.temp[, 2], "med.p.err" = compare.LPP.anovaBF.perc.err.temp[, 2],
-  "wid" = compare.LPP.anovaBF.temp[, 3], "wid.p.err" = compare.LPP.anovaBF.perc.err.temp[, 3]
-)
-compare.LPP.anovaBF <- compare.LPP.anovaBF[order(compare.LPP.anovaBF$med, decreasing = TRUE), ] # sort according to medium scaling factor (in descending order)
-kable(format(compare.LPP.anovaBF, scientific = TRUE), digits = 2)
-```
-
-Exploratory analyses further suggest that omitting the factor *emotion* from the full model improves fitting by `r compare.LPP.anovaBF$med[1]` times. Removing *contrast x emotion*, *size x emotion*, and *size x contrast x emotion* also improves fitting by `r compare.LPP.anovaBF$med[2]`, `r compare.LPP.anovaBF$med[3]`, `r compare.LPP.anovaBF$med[4]` times, respectively.   
-Conversely, omitting the *contrast x size* interaction or the factor *contrast* lowers the explanatory value of the resulting model by `r 1/compare.LPP.anovaBF$med[5]` and `r format(1/compare.LPP.anovaBF$med[6], scientific=TRUE)` times, respectively. Finally, omitting the factor *size* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r format(1/compare.LPP.anovaBF$med[7], scientific=TRUE)` times.
-
-***
-***
-
-# SUPPLEMENTARY ANALYSIS
-
 Visual inspection of the waveforms revealed unexpected latency shifts at the level of P1 and N1 components. This could be a potential source of noise when analyzing mean amplitude values. Therefore, we ran the same analyses as above but using, as dependent variables, peak amplitude and latency values of P1 and N1.
 
 ```{r data_peaks}
-data.P1.peakamp <- read.table("P1_locpeakamp.txt", header = TRUE) # load data
-data.P1.peaklat <- read.table("P1_locpeaklat.txt", header = TRUE) # load data
-data.N1.peakamp <- read.table("N1_locpeakamp.txt", header = TRUE) # load data
-data.N1.peaklat <- read.table("N1_locpeaklat.txt", header = TRUE) # load data
+# load data
+data.P1.peakamp <- read.table(paste0(getwd(), "/EEG/main/P1_locpeakamp.txt"), header = TRUE)
+data.P1.peaklat <- read.table(paste0(getwd(), "/EEG/main/P1_locpeaklat.txt"), header = TRUE)
+data.N1.peakamp <- read.table(paste0(getwd(), "/EEG/main/N1_locpeakamp.txt"), header = TRUE)
+data.N1.peaklat <- read.table(paste0(getwd(), "/EEG/main/N1_locpeaklat.txt"), header = TRUE)
 
 data.peaks <- rbind(data.P1.peakamp, data.P1.peaklat, data.N1.peakamp, data.N1.peaklat) %>%
   mutate(
@@ -2810,9 +2528,12 @@ data.peaks <- rbind(data.P1.peakamp, data.P1.peaklat, data.N1.peakamp, data.N1.p
     cont = revalue(bini, c("1" = "dark", "2" = "dark", "3" = "bright", "4" = "bright", "5" = "dark", "6" = "dark", "7" = "bright", "8" = "bright")), # main effect of contrast
     cont = relevel(cont, ref = "dark"), # re-reference contrast to dark
     emo = revalue(bini, c("1" = "negative", "2" = "negative", "3" = "negative", "4" = "negative", "5" = "neutral", "6" = "neutral", "7" = "neutral", "8" = "neutral")), # main effect of emotion
-    emo = relevel(emo, ref = "neutral")
-  ) %>% # re-reference emotion to neutral
-  select(participant = ERPset, component = chlabel, var, condition = binlabel, size, cont, emo, value) # select, reorder, and rename variables
+    emo = relevel(emo, ref = "neutral")) %>% # re-reference emotion to neutral
+  unite(visualfeats, c("size", "cont"), sep = " ", remove = FALSE) %>% # for graph
+  mutate(visualfeats = as.factor(ifelse(visualfeats == "NA NA", "localizer", visualfeats))) %>%
+  # select, reorder, and rename variables
+  select(participant = ERPset, component = chlabel, var, condition = binlabel, size, cont, emo, visualfeats, value)
+
 rm(data.P1.peakamp, data.P1.peaklat, data.N1.peakamp, data.N1.peaklat) # remove unnecessary data frames
 ```
 
@@ -2826,100 +2547,144 @@ Electrode cluster: P7 P9 PO7 O1 O2 PO8 P8 P10.
 
 ```{r P1_peakamp_pirateplot}
 # summarize data
-summary.P1.peakamp <- summarySEwithin(subset(data.peaks, component == "P1" & var == "peak.amp"), "value", withinvars = c("size", "cont", "emo"), idvar = "participant")
+summary.P1.peakamp <- summarySEwithin(subset(data.peaks, component == "P1" & var == "peak.amp"), "value", withinvars = c("size", "cont", "emo", "visualfeats"), idvar = "participant")
 kable(summary.P1.peakamp, digits = 2)
 
 # pirateplot
 pirateplot(
-  formula = value ~ emo + size + cont, # dependent~independent variables
-  data = subset(data.peaks, component == "P1" & var == "peak.amp"), # data frame
-  main = "P1 peak amplitude", # main title
-  xlim = NULL, # x-axis: limits
-  xlab = "", # x-axis: label
-  ylim = c(-1, 11), # y-axis: limits
-  ylab = expression(paste("amplitude (", mu, "V)")), # y-axis: label
-  inf.method = "hdi", # type of inference: 95% Bayesian Highest Density Interval (HDI)
-  inf.within = "participant", # ID variable in within-subject designs
-  hdi.iter = 5000, # number of iterations for 95% HDI
-  cap.beans = TRUE, # max and min values of bean densities are capped at the limits found in the data
+  formula = value ~ emo + visualfeats,
+  data = subset(data.peaks, component == "P1" & var == "peak.amp"),
+  main = "P1 peak amplitude",
+  xlim = NULL,
+  xlab = "",
+  ylim = c(-1, 11),
+  ylab = expression(paste("amplitude (", mu, "V)")),
+  inf.method = "hdi",
+  inf.within = "participant",
+  hdi.iter = 5000,
+  cap.beans = TRUE,
+  point.cex = 1.3,
   pal = pirateplot.palette
-) # color palette
+)
 ```
 
 ```{r P1_peakamp_models}
-# preallocate matrices with all BFs
-compare.P1.peakamp.BF <- matrix(NA, 6, length(scaling.factor)) # BFs
-compare.P1.peakamp.perc.err <- matrix(NA, 6, length(scaling.factor)) # % errors
+# preallocate matrix with all BFs
+compare.P1.peakamp.BF <- matrix(NA, 6, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.P1.peakamp.perc.err <- matrix(NA, 6, length(scaling.factor))
 
+# ### uncomment to recompute models ###
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+#   
+#   ## main effects of size and emotion
+#   P1.peakamp.sizeplusemo.BF <- lmBF(
+#     value ~ size + emo,
+#     subset(data.peaks, component == "P1" & var == "peak.amp"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(P1.peakamp.sizeplusemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_sizeplusemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### interactive effects of size and emotion
+#   P1.peakamp.sizebyemo.BF <- lmBF(
+#     value ~ size * emo,
+#     subset(data.peaks, component == "P1" & var == "peak.amp"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(P1.peakamp.sizebyemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_sizebyemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### main effects of contrast and emotion
+#   P1.peakamp.contplusemo.BF <- lmBF(
+#     value ~ cont + emo,
+#     subset(data.peaks, component == "P1" & var == "peak.amp"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )  
+#   
+#   saveRDS(P1.peakamp.contplusemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_contplusemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### interactive effects of contrast and emotion
+#   P1.peakamp.contbyemo.BF <- lmBF(
+#     value ~ cont * emo,
+#     subset(data.peaks, component == "P1" & var == "peak.amp"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(P1.peakamp.contbyemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_contbyemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### main effects of size, contrast, and emotion
+#   P1.peakamp.sizepluscontplusemo.BF <- lmBF(
+#     value ~ size + cont + emo,
+#     subset(data.peaks, component == "P1" & var == "peak.amp"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(P1.peakamp.sizepluscontplusemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_sizepluscontplusemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### interactive effects of size, contrast, and emotion
+#   P1.peakamp.sizebycontbyemo.BF <- lmBF(
+#     value ~ size * cont * emo,
+#     subset(data.peaks, component == "P1" & var == "peak.amp"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )  
+#   
+#   saveRDS(P1.peakamp.sizebycontbyemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_sizebycontbyemo_BF_", scaling.factor[k], ".rds"))
+#   
+# }
+
+### model comparison across scaling factors
 for (k in 1:length(scaling.factor)) { # loop through scaling factors
-
-  ### main effects of size and emotion
-  # P1.peakamp.sizeplusemo.BF <- lmBF(value~size+emo, # formula
-  #                                   subset(data.peaks, component=="P1" & var=="peak.amp"), # data
-  #                                   whichRandom=c("participant", "word"), # random effects
-  #                                   rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                                   rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                                   rscaleCont="medium", # prior scale for standardized slopes
-  #                                   iterations=niter) # number of MCMC iterations
-  # saveRDS(P1.peakamp.sizeplusemo.BF, file=paste0(wd, "/models/P1_peakamp_sizeplusemo_BF_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.sizeplusemo.BF <- readRDS(paste0(wd, "/models/P1_peakamp_sizeplusemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### interactive effects of size and emotion
-  # P1.peakamp.sizebyemo.BF <- lmBF(value~size*emo, # formula
-  #                                 subset(data.peaks, component=="P1" & var=="peak.amp"), # data
-  #                                 whichRandom=c("participant", "word"), # random effects
-  #                                 rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                                 rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                                 rscaleCont="medium", # prior scale for standardized slopes
-  #                                 iterations=niter) # number of MCMC iterations
-  # saveRDS(P1.peakamp.sizebyemo.BF, file=paste0(wd, "/models/P1_peakamp_sizebyemo_BF_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.sizebyemo.BF <- readRDS(paste0(wd, "/models/P1_peakamp_sizebyemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### main effects of contrast and emotion
-  # P1.peakamp.contplusemo.BF <- lmBF(value~cont+emo, # formula
-  #                                   subset(data.peaks, component=="P1" & var=="peak.amp"), # data
-  #                                   whichRandom=c("participant", "word"), # random effects
-  #                                   rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                                   rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                                   rscaleCont="medium", # prior scale for standardized slopes
-  #                                   iterations=niter) # number of MCMC iterations
-  # saveRDS(P1.peakamp.contplusemo.BF, file=paste0(wd, "/models/P1_peakamp_contplusemo_BF_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.contplusemo.BF <- readRDS(paste0(wd, "/models/P1_peakamp_contplusemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### interactive effects of contrast and emotion
-  # P1.peakamp.contbyemo.BF <- lmBF(value~cont*emo, # formula
-  #                                 subset(data.peaks, component=="P1" & var=="peak.amp"), # data
-  #                                 whichRandom=c("participant", "word"), # random effects
-  #                                 rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                                 rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                                 rscaleCont="medium", # prior scale for standardized slopes
-  #                                 iterations=niter) # number of MCMC iterations
-  # saveRDS(P1.peakamp.contbyemo.BF, file=paste0(wd, "/models/P1_peakamp_contbyemo_BF_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.contbyemo.BF <- readRDS(paste0(wd, "/models/P1_peakamp_contbyemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### main effects of size, contrast, and emotion
-  # P1.peakamp.sizepluscontplusemo.BF <- lmBF(value~size+cont+emo, # formula
-  #                                           subset(data.peaks, component=="P1" & var=="peak.amp"), # data
-  #                                           whichRandom=c("participant", "word"), # random effects
-  #                                           rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                                           rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                                           rscaleCont="medium", # prior scale for standardized slopes
-  #                                           iterations=niter) # number of MCMC iterations
-  # saveRDS(P1.peakamp.sizepluscontplusemo.BF, file=paste0(wd, "/models/P1_peakamp_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.sizepluscontplusemo.BF <- readRDS(paste0(wd, "/models/P1_peakamp_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### interactive effects of size, contrast, and emotion
-  # P1.peakamp.sizebycontbyemo.BF <- lmBF(value~size*cont*emo, # formula
-  #                                       subset(data.peaks, component=="P1" & var=="peak.amp"), # data
-  #                                       whichRandom=c("participant", "word"), # random effects
-  #                                       rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                                       rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                                       rscaleCont="medium", # prior scale for standardized slopes
-  #                                       iterations=niter) # number of MCMC iterations
-  # saveRDS(P1.peakamp.sizebycontbyemo.BF, file=paste0(wd, "/models/P1_peakamp_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.sizebycontbyemo.BF <- readRDS(paste0(wd, "/models/P1_peakamp_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### model comparison across scaling factors
+  
+  ### load models
+  P1.peakamp.sizeplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_sizeplusemo_BF_", scaling.factor[k], ".rds"))
+  
+  P1.peakamp.sizebyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_sizebyemo_BF_", scaling.factor[k], ".rds"))
+  
+  P1.peakamp.contplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_contplusemo_BF_", scaling.factor[k], ".rds"))
+  
+  P1.peakamp.contbyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_contbyemo_BF_", scaling.factor[k], ".rds")) 
+  
+  P1.peakamp.sizepluscontplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) 
+  
+  P1.peakamp.sizebycontbyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) 
+  
   # BFs
   compare.P1.peakamp.BF[, k] <- c(
     exp(P1.peakamp.sizeplusemo.BF@bayesFactor$bf[1]),
@@ -2947,12 +2712,16 @@ compare.P1.peakamp <- data.frame(
   "med" = compare.P1.peakamp.BF[, 2], "med.p.err" = compare.P1.peakamp.perc.err[, 2],
   "wid" = compare.P1.peakamp.BF[, 3], "wid.p.err" = compare.P1.peakamp.perc.err[, 3]
 )
-compare.P1.peakamp <- compare.P1.peakamp[order(compare.P1.peakamp$med, decreasing = TRUE), ] # sort according to medium scaling factor (in descending order)
+
+# sort according to medium scaling factor (in descending order)
+compare.P1.peakamp <- compare.P1.peakamp[order(compare.P1.peakamp$med, decreasing = TRUE), ]
+
+# nicer table
 kable(format(compare.P1.peakamp, scientific = TRUE), digits = 2)
 ```
 
-When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model `r ifelse(compare.P1.peakamp[1, 4]<1, "null", as.character(compare.P1.peakamp[1, 1]))` ought to be preferred.   
-The best model (`r as.character(compare.P1.peakamp[1, 1])`) explains the observed data `r ifelse(compare.P1.peakamp[1, 4]>1, compare.P1.peakamp[1, 4]/compare.P1.peakamp[2, 4], 1/compare.P1.peakamp[1, 4])` times better than the second best model (`r as.character(compare.P1.peakamp[2, 1])`).   
+When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model `r ifelse(compare.P1.peakamp[1, 4] < 1, "null", as.character(compare.P1.peakamp[1, 1]))` ought to be preferred.   
+The best model (`r as.character(compare.P1.peakamp[1, 1])`) explains the observed data `r ifelse(compare.P1.peakamp[1, 4] > 1, compare.P1.peakamp[1, 4]/compare.P1.peakamp[2, 4], 1/compare.P1.peakamp[1, 4])` times better than the second best model (`r as.character(compare.P1.peakamp[2, 1])`).   
 
 ### Paired comparisons
 
@@ -2962,51 +2731,84 @@ P1.peakamp.posthocBF <- subset(data.peaks, component == "P1" & var == "peak.amp"
   select(participant, condition, value) %>% # select only variables of interest
   split(.$condition) # split according to condition
 
-compare.P1.peakamp.posthocBF <- matrix(NA, 4, length(scaling.factor)) # preallocate matrix with all BF10
-compare.P1.peakamp.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor)) # preallocate matrix with all % errors
+# preallocate matrix with all BFs
+compare.P1.peakamp.posthocBF <- matrix(NA, 4, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.P1.peakamp.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor)) 
 
+# ### uncomment to recompute models ###
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# 
+#   # large, dark, negative vs. neutral
+#   P1.peakamp.posthocBF.large.dark.negVSneut <- ttestBF(
+#     P1.peakamp.posthocBF$negativeLargeDark$value,
+#     P1.peakamp.posthocBF$neutralLargeDark$value,
+#     mu = 0,
+#     paired = TRUE,
+#     iterations = niter,
+#     rscale = scaling.factor[k]
+#   )
+#   
+#   saveRDS(P1.peakamp.posthocBF.large.dark.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds"))
+# 
+#   # small, dark, negative vs. neutral
+#   P1.peakamp.posthocBF.small.dark.negVSneut <- ttestBF(
+#     P1.peakamp.posthocBF$negativeSmallDark$value,
+#     P1.peakamp.posthocBF$neutralSmallDark$value,
+#     mu = 0,
+#     paired = TRUE,
+#     iterations = niter,
+#     rscale = scaling.factor[k]
+#   )
+#   
+#   saveRDS(P1.peakamp.posthocBF.small.dark.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds"))
+#  
+#   # large, bright, negative vs. neutral
+#   P1.peakamp.posthocBF.large.bright.negVSneut <- ttestBF(
+#     P1.peakamp.posthocBF$negativeLargeBright$value,
+#     P1.peakamp.posthocBF$neutralLargeBright$value,
+#     mu = 0,
+#     paired = TRUE,
+#     iterations = niter,
+#     rscale = scaling.factor[k]
+#   )
+#   
+#   saveRDS(P1.peakamp.posthocBF.large.bright.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds"))
+#   
+#   # small, bright, negative vs. neutral
+#   P1.peakamp.posthocBF.small.bright.negVSneut <- ttestBF(
+#     P1.peakamp.posthocBF$negativeSmallBright$value,
+#     P1.peakamp.posthocBF$neutralSmallBright$value,
+#     mu = 0,
+#     iterations = niter,
+#     paired = TRUE,
+#     rscale = scaling.factor[k]
+#   )
+#   
+#   saveRDS(P1.peakamp.posthocBF.small.bright.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds"))
+# 
+#   }
+  
+### model comparison across scaling factors
 for (k in 1:length(scaling.factor)) { # loop through scaling factors
-
-  # large, dark, negative vs. neutral
-  # P1.peakamp.posthocBF.large.dark.negVSneut <- ttestBF(P1.peakamp.posthocBF$negativeLargeDark$value, # first condition
-  #                                                      P1.peakamp.posthocBF$neutralLargeDark$value, # second condition
-  #                                                      mu=0, # null hypothesis (mean difference=0)
-  #                                                      paired=TRUE, # paired sample test
-  #                                                      iterations=niter, # number of MCMC iterations
-  #                                                      rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(P1.peakamp.posthocBF.large.dark.negVSneut, file=paste0(wd, "/models/P1_peakamp_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.posthocBF.large.dark.negVSneut <- readRDS(paste0(wd, "/models/P1_peakamp_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds")) # load model
-
-  # small, dark, negative vs. neutral
-  # P1.peakamp.posthocBF.small.dark.negVSneut <- ttestBF(P1.peakamp.posthocBF$negativeSmallDark$value, # first condition
-  #                                                      P1.peakamp.posthocBF$neutralSmallDark$value, # second condition
-  #                                                      mu=0, # null hypothesis (mean difference=0)
-  #                                                      paired=TRUE, # paired sample test
-  #                                                      iterations=niter, # number of MCMC iterations
-  #                                                      rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(P1.peakamp.posthocBF.small.dark.negVSneut, file=paste0(wd, "/models/P1_peakamp_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.posthocBF.small.dark.negVSneut <- readRDS(paste0(wd, "/models/P1_peakamp_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds")) # load model
-
-  # large, bright, negative vs. neutral
-  # P1.peakamp.posthocBF.large.bright.negVSneut <- ttestBF(P1.peakamp.posthocBF$negativeLargeBright$value, # first condition
-  #                                                P1.peakamp.posthocBF$neutralLargeBright$value, # second condition
-  #                                                mu=0, # null hypothesis (mean difference=0)
-  #                                                paired=TRUE, # paired sample test
-  #                                                iterations=niter, # number of MCMC iterations
-  #                                                rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(P1.peakamp.posthocBF.large.bright.negVSneut, file=paste0(wd, "/models/P1_peakamp_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.posthocBF.large.bright.negVSneut <- readRDS(paste0(wd, "/models/P1_peakamp_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds")) # load model
-
-  # small, bright, negative vs. neutral
-  # P1.peakamp.posthocBF.small.bright.negVSneut <- ttestBF(P1.peakamp.posthocBF$negativeSmallBright$value, # first condition
-  #                                                P1.peakamp.posthocBF$neutralSmallBright$value, # second condition
-  #                                                mu=0, # null hypothesis (mean difference=0)
-  #                                                iterations=niter, # number of MCMC iterations
-  #                                                paired=TRUE, # paired sample test
-  #                                                rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(P1.peakamp.posthocBF.small.bright.negVSneut, file=paste0(wd, "/models/P1_peakamp_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.posthocBF.small.bright.negVSneut <- readRDS(paste0(wd, "/models/P1_peakamp_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds")) # load model
-
+  
+  ### load models
+  P1.peakamp.posthocBF.large.dark.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds"))
+  
+  P1.peakamp.posthocBF.small.dark.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds"))
+  
+  P1.peakamp.posthocBF.large.bright.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds"))
+  
+  P1.peakamp.posthocBF.small.bright.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds"))
+  
   ### model comparison
   compare.P1.peakamp.posthocBF[, k] <- c(
     exp(P1.peakamp.posthocBF.large.dark.negVSneut@bayesFactor$bf[1]),
@@ -3031,6 +2833,8 @@ compare.P1.peakamp.posthocBF <- data.frame(
   "med" = compare.P1.peakamp.posthocBF[, 2], "med.p.err" = compare.P1.peakamp.posthocBF.perc.err[, 2],
   "wid" = compare.P1.peakamp.posthocBF[, 3], "wid.p.err" = compare.P1.peakamp.posthocBF.perc.err[, 3]
 )
+
+# nicer table
 kable(format(compare.P1.peakamp.posthocBF, scientific = TRUE), digits = 2)
 ```
 
@@ -3040,27 +2844,39 @@ Follow-up contrasts reveal that the effect of *emotion* does not explain changes
 
 ```{r P1_peakamp_expl_modelselect}
 # preallocate matrices with all BFs
-compare.P1.peakamp.anovaBF.temp <- matrix(NA, 7, length(scaling.factor)) # BFs
-compare.P1.peakamp.anovaBF.perc.err.temp <- matrix(NA, 7, length(scaling.factor)) # % errors
+compare.P1.peakamp.anovaBF.temp <- matrix(NA, 7, length(scaling.factor))
+compare.P1.peakamp.anovaBF.perc.err.temp <- matrix(NA, 7, length(scaling.factor))
 
+# ### uncomment to recompute models ###
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# 
+#   # How important is each effect/interaction if we remove it from the full model?
+#   P1.peakamp.anovaBF <- anovaBF(
+#     value ~ size * cont * emo,
+#     subset(data.peaks, component == "P1" & var == "peak.amp"),
+#     whichModels = "top",
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(P1.peakamp.anovaBF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peakamp_anovaBF_", scaling.factor[k], ".rds"))
+# 
+# }
+  
 for (k in 1:length(scaling.factor)) { # loop through scaling factors
-
-  # How important is each effect/interaction if we remove it from the full model?
-  # P1.peakamp.anovaBF <- anovaBF(value~size*cont*emo, # formula
-  #                       subset(data.peaks, component=="P1" & var=="peak.amp"), # data
-  #                       whichModels="top", # test all models created by removing a main effect or interaction from the full model
-  #                       whichRandom=c("participant", "word"), # random effects
-  #                       rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                       rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                       iterations=niter) # number of MCMC iterations
-  # saveRDS(P1.peakamp.anovaBF, file=paste0(wd, "/models/P1_peakamp_anovaBF_", scaling.factor[k], ".rds")) # save model
-  P1.peakamp.anovaBF <- readRDS(paste0(wd, "/models/P1_peakamp_anovaBF_", scaling.factor[k], ".rds")) # load model
-
+  
+  P1.peakamp.anovaBF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peakamp_anovaBF_", scaling.factor[k], ".rds"))
+  
   ### model comparison across scaling factors
   # BFs
   compare.P1.peakamp.anovaBF.temp[, k] <- exp(P1.peakamp.anovaBF@bayesFactor$bf)
   # percentage of error
   compare.P1.peakamp.anovaBF.perc.err.temp[, k] <- P1.peakamp.anovaBF@bayesFactor$error * 100
+  
 }
 
 # summary exploratory analysis
@@ -3070,7 +2886,9 @@ compare.P1.peakamp.anovaBF <- data.frame(
   "med" = compare.P1.peakamp.anovaBF.temp[, 2], "med.p.err" = compare.P1.peakamp.anovaBF.perc.err.temp[, 2],
   "wid" = compare.P1.peakamp.anovaBF.temp[, 3], "wid.p.err" = compare.P1.peakamp.anovaBF.perc.err.temp[, 3]
 )
-compare.P1.peakamp.anovaBF <- compare.P1.peakamp.anovaBF[order(compare.P1.peakamp.anovaBF$med, decreasing = TRUE), ] # sort according to medium scaling factor (in descending order)
+
+# sort according to medium scaling factor (in descending order)
+compare.P1.peakamp.anovaBF <- compare.P1.peakamp.anovaBF[order(compare.P1.peakamp.anovaBF$med, decreasing = TRUE), ]
 kable(format(compare.P1.peakamp.anovaBF, scientific = TRUE), digits = 2)
 ```
 
@@ -3078,6 +2896,427 @@ Exploratory analyses suggest that omitting the *contrast x emotion* interaction 
 Conversely, omitting  *contrast x size* or *contrast* lowers the explanatory value of the resulting model by `r 1/compare.P1.peakamp.anovaBF$med[5]` and `r 1/compare.P1.peakamp.anovaBF$med[6]` times, respectively. Finally, omitting the factor *size* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r 1/compare.P1.peakamp.anovaBF$med[7]` times.
 
 ### Peak latency
+
+Peak latency: time (in ms) of the positive value larger than the 3 points (~10 ms at 256 Hz sampling rate) on either side of the peak.   
+Time window: 66-148 ms post-stimulus onset.   
+Electrode cluster: P7 P9 PO7 O1 O2 PO8 P8 P10.
+
+```{r P1_peaklat_pirateplot}
+# summarize data
+summary.P1.peaklat <- summarySEwithin(subset(data.peaks, component == "P1" & var == "peak.lat"), "value", withinvars = c("size", "cont", "emo", "visualfeats"), idvar = "participant")
+kable(summary.P1.peaklat, digits = 2)
+
+# pirateplot
+pirateplot(
+  formula = value ~ emo + visualfeats,
+  data = subset(data.peaks, component == "P1" & var == "peak.lat"),
+  main = "P1 peak amplitude",
+  xlim = NULL,
+  xlab = "",
+  ylim = c(60, 150),
+  ylab = expression(paste("amplitude (", mu, "V)")),
+  inf.method = "hdi",
+  inf.within = "participant",
+  hdi.iter = 5000,
+  cap.beans = TRUE,
+  point.cex = 1.3,
+  pal = pirateplot.palette
+)
+```
+
+```{r P1_peaklat_models}
+# preallocate matrix with all BFs
+compare.P1.peaklat.BF <- matrix(NA, 6, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.P1.peaklat.perc.err <- matrix(NA, 6, length(scaling.factor))
+
+# ### uncomment to recompute models ###
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+#   
+#   ## main effects of size and emotion
+#   P1.peaklat.sizeplusemo.BF <- lmBF(
+#     value ~ size + emo,
+#     subset(data.peaks, component == "P1" & var == "peak.lat"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(P1.peaklat.sizeplusemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_sizeplusemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### interactive effects of size and emotion
+#   P1.peaklat.sizebyemo.BF <- lmBF(
+#     value ~ size * emo,
+#     subset(data.peaks, component == "P1" & var == "peak.lat"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(P1.peaklat.sizebyemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_sizebyemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### main effects of contrast and emotion
+#   P1.peaklat.contplusemo.BF <- lmBF(
+#     value ~ cont + emo,
+#     subset(data.peaks, component == "P1" & var == "peak.lat"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )  
+#   
+#   saveRDS(P1.peaklat.contplusemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_contplusemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### interactive effects of contrast and emotion
+#   P1.peaklat.contbyemo.BF <- lmBF(
+#     value ~ cont * emo,
+#     subset(data.peaks, component == "P1" & var == "peak.lat"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(P1.peaklat.contbyemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_contbyemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### main effects of size, contrast, and emotion
+#   P1.peaklat.sizepluscontplusemo.BF <- lmBF(
+#     value ~ size + cont + emo,
+#     subset(data.peaks, component == "P1" & var == "peak.lat"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(P1.peaklat.sizepluscontplusemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_sizepluscontplusemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### interactive effects of size, contrast, and emotion
+#   P1.peaklat.sizebycontbyemo.BF <- lmBF(
+#     value ~ size * cont * emo,
+#     subset(data.peaks, component == "P1" & var == "peak.lat"),
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )  
+#   
+#   saveRDS(P1.peaklat.sizebycontbyemo.BF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_sizebycontbyemo_BF_", scaling.factor[k], ".rds"))
+#   
+# }
+
+### model comparison across scaling factors
+for (k in 1:length(scaling.factor)) { # loop through scaling factors
+  
+  ### load models
+  P1.peaklat.sizeplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_sizeplusemo_BF_", scaling.factor[k], ".rds"))
+  
+  P1.peaklat.sizebyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_sizebyemo_BF_", scaling.factor[k], ".rds"))
+  
+  P1.peaklat.contplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_contplusemo_BF_", scaling.factor[k], ".rds"))
+  
+  P1.peaklat.contbyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_contbyemo_BF_", scaling.factor[k], ".rds")) 
+  
+  P1.peaklat.sizepluscontplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) 
+  
+  P1.peaklat.sizebycontbyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) 
+  
+  # BFs
+  compare.P1.peaklat.BF[, k] <- c(
+    exp(P1.peaklat.sizeplusemo.BF@bayesFactor$bf[1]),
+    exp(P1.peaklat.sizebyemo.BF@bayesFactor$bf[1]),
+    exp(P1.peaklat.contplusemo.BF@bayesFactor$bf[1]),
+    exp(P1.peaklat.contbyemo.BF@bayesFactor$bf[1]),
+    exp(P1.peaklat.sizepluscontplusemo.BF@bayesFactor$bf[1]),
+    exp(P1.peaklat.sizebycontbyemo.BF@bayesFactor$bf[1])
+  )
+  # percentage of error
+  compare.P1.peaklat.perc.err[, k] <- c(
+    P1.peaklat.sizeplusemo.BF@bayesFactor$error[1] * 100,
+    P1.peaklat.sizebyemo.BF@bayesFactor$error[1] * 100,
+    P1.peaklat.contplusemo.BF@bayesFactor$error[1] * 100,
+    P1.peaklat.contbyemo.BF@bayesFactor$error[1] * 100,
+    P1.peaklat.sizepluscontplusemo.BF@bayesFactor$error[1] * 100,
+    P1.peaklat.sizebycontbyemo.BF@bayesFactor$error[1] * 100
+  )
+}
+
+# summary confirmatory analysis
+compare.P1.peaklat <- data.frame(
+  "model" = c("size + emo", "size x emo", "contr + emo", "cont x emo", "size + cont + emo", "size x cont x emo"),
+  "nar" = compare.P1.peaklat.BF[, 1], "nar.p.err" = compare.P1.peaklat.perc.err[, 1],
+  "med" = compare.P1.peaklat.BF[, 2], "med.p.err" = compare.P1.peaklat.perc.err[, 2],
+  "wid" = compare.P1.peaklat.BF[, 3], "wid.p.err" = compare.P1.peaklat.perc.err[, 3]
+)
+
+# sort according to medium scaling factor (in descending order)
+compare.P1.peaklat <- compare.P1.peaklat[order(compare.P1.peaklat$med, decreasing = TRUE), ]
+
+# nicer table
+kable(format(compare.P1.peaklat, scientific = TRUE), digits = 2)
+```
+
+When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model `r ifelse(compare.P1.peaklat[1, 4] < 1, "null", as.character(compare.P1.peaklat[1, 1]))` ought to be preferred.   
+The best model (`r as.character(compare.P1.peaklat[1, 1])`) explains the observed data `r ifelse(compare.P1.peaklat[1, 4] > 1, compare.P1.peaklat[1, 4]/compare.P1.peaklat[2, 4], 1/compare.P1.peaklat[1, 4])` times better than the second best model (`r as.character(compare.P1.peaklat[2, 1])`).   
+
+### Paired comparisons
+
+```{r P1_peaklat_posthoc}
+# interactions of interest (i.e., always negative vs. neutral)
+P1.peaklat.posthocBF <- subset(data.peaks, component == "P1" & var == "peak.lat") %>% # data frame
+  select(participant, condition, value) %>% # select only variables of interest
+  split(.$condition) # split according to condition
+
+# preallocate matrix with all BFs
+compare.P1.peaklat.posthocBF <- matrix(NA, 4, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.P1.peaklat.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor)) 
+
+# ### uncomment to recompute models ###
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# 
+#   # large, dark, negative vs. neutral
+#   P1.peaklat.posthocBF.large.dark.negVSneut <- ttestBF(
+#     P1.peaklat.posthocBF$negativeLargeDark$value,
+#     P1.peaklat.posthocBF$neutralLargeDark$value,
+#     mu = 0,
+#     paired = TRUE,
+#     iterations = niter,
+#     rscale = scaling.factor[k]
+#   )
+#   
+#   saveRDS(P1.peaklat.posthocBF.large.dark.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds"))
+# 
+#   # small, dark, negative vs. neutral
+#   P1.peaklat.posthocBF.small.dark.negVSneut <- ttestBF(
+#     P1.peaklat.posthocBF$negativeSmallDark$value,
+#     P1.peaklat.posthocBF$neutralSmallDark$value,
+#     mu = 0,
+#     paired = TRUE,
+#     iterations = niter,
+#     rscale = scaling.factor[k]
+#   )
+#   
+#   saveRDS(P1.peaklat.posthocBF.small.dark.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds"))
+#  
+#   # large, bright, negative vs. neutral
+#   P1.peaklat.posthocBF.large.bright.negVSneut <- ttestBF(
+#     P1.peaklat.posthocBF$negativeLargeBright$value,
+#     P1.peaklat.posthocBF$neutralLargeBright$value,
+#     mu = 0,
+#     paired = TRUE,
+#     iterations = niter,
+#     rscale = scaling.factor[k]
+#   )
+#   
+#   saveRDS(P1.peaklat.posthocBF.large.bright.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds"))
+#   
+#   # small, bright, negative vs. neutral
+#   P1.peaklat.posthocBF.small.bright.negVSneut <- ttestBF(
+#     P1.peaklat.posthocBF$negativeSmallBright$value,
+#     P1.peaklat.posthocBF$neutralSmallBright$value,
+#     mu = 0,
+#     iterations = niter,
+#     paired = TRUE,
+#     rscale = scaling.factor[k]
+#   )
+#   
+#   saveRDS(P1.peaklat.posthocBF.small.bright.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds"))
+# 
+#   }
+  
+### model comparison across scaling factors
+for (k in 1:length(scaling.factor)) { # loop through scaling factors
+  
+  ### load models
+  P1.peaklat.posthocBF.large.dark.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds"))
+  
+  P1.peaklat.posthocBF.small.dark.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds"))
+  
+  P1.peaklat.posthocBF.large.bright.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds"))
+  
+  P1.peaklat.posthocBF.small.bright.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds"))
+  
+  ### model comparison
+  compare.P1.peaklat.posthocBF[, k] <- c(
+    exp(P1.peaklat.posthocBF.large.dark.negVSneut@bayesFactor$bf[1]),
+    exp(P1.peaklat.posthocBF.small.dark.negVSneut@bayesFactor$bf[1]),
+    exp(P1.peaklat.posthocBF.large.bright.negVSneut@bayesFactor$bf[1]),
+    exp(P1.peaklat.posthocBF.small.bright.negVSneut@bayesFactor$bf[1])
+  )
+
+  # percentage of error
+  compare.P1.peaklat.posthocBF.perc.err[, k] <- c(
+    P1.peaklat.posthocBF.large.dark.negVSneut@bayesFactor$error[1] * 100,
+    P1.peaklat.posthocBF.small.dark.negVSneut@bayesFactor$error[1] * 100,
+    P1.peaklat.posthocBF.large.bright.negVSneut@bayesFactor$error[1] * 100,
+    P1.peaklat.posthocBF.small.bright.negVSneut@bayesFactor$error[1] * 100
+  )
+}
+
+# summary
+compare.P1.peaklat.posthocBF <- data.frame(
+  "comparison" = c("large.dark.negVSneut", "small.dark.negVSneut", "large.bright.negVSneut", "small.bright.negVSneut"),
+  "nar" = compare.P1.peaklat.posthocBF[, 1], "nar.p.err" = compare.P1.peaklat.posthocBF.perc.err[, 1],
+  "med" = compare.P1.peaklat.posthocBF[, 2], "med.p.err" = compare.P1.peaklat.posthocBF.perc.err[, 2],
+  "wid" = compare.P1.peaklat.posthocBF[, 3], "wid.p.err" = compare.P1.peaklat.posthocBF.perc.err[, 3]
+)
+
+# nicer table
+kable(format(compare.P1.peaklat.posthocBF, scientific = TRUE), digits = 2)
+```
+
+Follow-up contrasts reveal that the effect of *emotion* does not explain changes in P1 peak amplitude.
+
+### Exploratory model selection
+
+```{r P1_peaklat_expl_modelselect}
+# preallocate matrices with all BFs
+compare.P1.peaklat.anovaBF.temp <- matrix(NA, 7, length(scaling.factor))
+compare.P1.peaklat.anovaBF.perc.err.temp <- matrix(NA, 7, length(scaling.factor))
+
+# ### uncomment to recompute models ###
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# 
+#   # How important is each effect/interaction if we remove it from the full model?
+#   P1.peaklat.anovaBF <- anovaBF(
+#     value ~ size * cont * emo,
+#     subset(data.peaks, component == "P1" & var == "peak.lat"),
+#     whichModels = "top",
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(P1.peaklat.anovaBF,
+#           file = paste0(getwd(), "/EEG/main/models/P1_peaklat_anovaBF_", scaling.factor[k], ".rds"))
+# 
+# }
+  
+for (k in 1:length(scaling.factor)) { # loop through scaling factors
+  
+  P1.peaklat.anovaBF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/P1_peaklat_anovaBF_", scaling.factor[k], ".rds"))
+  
+  ### model comparison across scaling factors
+  # BFs
+  compare.P1.peaklat.anovaBF.temp[, k] <- exp(P1.peaklat.anovaBF@bayesFactor$bf)
+  # percentage of error
+  compare.P1.peaklat.anovaBF.perc.err.temp[, k] <- P1.peaklat.anovaBF@bayesFactor$error * 100
+  
+}
+
+# summary exploratory analysis
+compare.P1.peaklat.anovaBF <- data.frame(
+  "omit from full model" = c("cont:emo:size", "cont:emo", "emo:size", "cont:size", "emo", "cont", "size"),
+  "nar" = compare.P1.peaklat.anovaBF.temp[, 1], "nar.p.err" = compare.P1.peaklat.anovaBF.perc.err.temp[, 1],
+  "med" = compare.P1.peaklat.anovaBF.temp[, 2], "med.p.err" = compare.P1.peaklat.anovaBF.perc.err.temp[, 2],
+  "wid" = compare.P1.peaklat.anovaBF.temp[, 3], "wid.p.err" = compare.P1.peaklat.anovaBF.perc.err.temp[, 3]
+)
+
+# sort according to medium scaling factor (in descending order)
+compare.P1.peaklat.anovaBF <- compare.P1.peaklat.anovaBF[order(compare.P1.peaklat.anovaBF$med, decreasing = TRUE), ]
+kable(format(compare.P1.peaklat.anovaBF, scientific = TRUE), digits = 2)
+```
+
+Exploratory analyses suggest that omitting the *contrast x emotion* interaction from the full model improves fitting by `r compare.P1.peaklat.anovaBF$med[1]` times. Removing *emotion*, *size x emotion*, and *size x contrast x emotion* also improves fitting by `r compare.P1.peaklat.anovaBF$med[2]`, `r compare.P1.peaklat.anovaBF$med[3]`, and `r compare.P1.peaklat.anovaBF$med[4]` times, respectively.   
+Conversely, omitting  *contrast x size* or *contrast* lowers the explanatory value of the resulting model by `r 1/compare.P1.peaklat.anovaBF$med[5]` and `r 1/compare.P1.peaklat.anovaBF$med[6]` times, respectively. Finally, omitting the factor *size* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r 1/compare.P1.peaklat.anovaBF$med[7]` times.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Peak latency: time (in ms) of the positive value larger than the 3 points (~10 ms at 256 Hz sampling rate) on either side of the peak.   
 Time window: 66-148 ms post-stimulus onset.   
