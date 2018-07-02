@@ -1,5 +1,5 @@
 .First <- function(){ # at startup
-  .libPaths("~/Documents/Programs/R/packages/")
+  .libPaths("E:/R_workspace/packages/")
   # colorful welcome message
   library("crayon")
   cat(
