@@ -1831,146 +1831,122 @@ summarySEwithin(data.EEG.trial,
   kable(., digits = 2)
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## EPN
-
-```{r EPN_summary}
-# summarize data
-summary.EPN <- summarySEwithin(data.EEG.trial, "EPN", withinvars = c("size", "cont", "emo"), idvar = "participant")
-kable(summary.EPN, digits = 2)
-```
-
 ```{r EPN_models}
-# preallocate matrices with all BFs
-compare.EPN.BF <- matrix(NA, 6, length(scaling.factor)) # BFs
-compare.EPN.perc.err <- matrix(NA, 6, length(scaling.factor)) # % errors
+# preallocate matrix with all BFs
+compare.EPN.BF <- matrix(NA, 6, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.EPN.perc.err <- matrix(NA, 6, length(scaling.factor))
 
+# ### uncomment to recompute models ###
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# 
+#   ### main effects of size and emotion
+#   EPN.sizeplusemo.BF <- lmBF(
+#     EPN ~ size + emo, # formula
+#     data.EEG.trial, # data
+#     whichRandom = c("participant", "word"), # random effects
+#     rscaleFixed = scaling.factor[k], # scaling factor of prior on effect size
+#     rscaleRandom = "nuisance", # prior scale for standardized random effects
+#     rscaleCont = "medium", # prior scale for standardized slopes
+#     iterations = niter # number of MCMC iterations
+#   )
+#   
+#   saveRDS(EPN.sizeplusemo.BF,  # save model
+#           file = paste0(getwd(), "/EEG/main/models/EPN_sizeplusemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### interactive effects of size and emotion
+#   EPN.sizebyemo.BF <- lmBF(
+#     EPN ~ size * emo,
+#     data.EEG.trial,
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(EPN.sizebyemo.BF, # save model
+#           file = paste0(getwd(), "/EEG/main/models/EPN_sizebyemo_BF_", scaling.factor[k], ".rds"))
+# 
+#   ### main effects of contrast and emotion
+#   EPN.contplusemo.BF <- lmBF(
+#     EPN ~ cont + emo,
+#     data.EEG.trial,
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(EPN.contplusemo.BF, # save model
+#           file = paste0(getwd(), "/EEG/main/models/EPN_contplusemo_BF_", scaling.factor[k], ".rds")) 
+#   
+#   ### interactive effects of contrast and emotion
+#   EPN.contbyemo.BF <- lmBF(
+#     EPN ~ cont * emo,
+#     data.EEG.trial,
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(EPN.contbyemo.BF, # save model
+#           file = paste0(getwd(), "/EEG/main/models/EPN_contbyemo_BF_", scaling.factor[k], ".rds")) 
+#   
+#   ### main effects of size, contrast, and emotion
+#   EPN.sizepluscontplusemo.BF <- lmBF(
+#     EPN ~ size + cont + emo,
+#     data.EEG.trial,
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(EPN.sizepluscontplusemo.BF, # save model
+#           file = paste0(getwd(), "/EEG/main/models/EPN_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) 
+#   
+#   ### interactive effects of size, contrast, and emotion
+#   EPN.sizebycontbyemo.BF <- lmBF(
+#     EPN ~ size * cont * emo,
+#     data.EEG.trial,
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(EPN.sizebycontbyemo.BF, # save model
+#           file = paste0(getwd(), "/EEG/main/models/EPN_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) 
+# }
+
+### model comparison across scaling factors
 for (k in 1:length(scaling.factor)) { # loop through scaling factors
-
-  ### main effects of size and emotion
-  # EPN.sizeplusemo.BF <- lmBF(EPN~size+emo, # formula
-  #                           data.EEG.trial, # data
-  #                           whichRandom=c("participant", "word"), # random effects
-  #                           rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                           rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                           rscaleCont="medium", # prior scale for standardized slopes
-  #                           iterations=niter) # number of MCMC iterations
-  # saveRDS(EPN.sizeplusemo.BF, file=paste0(wd, "/models/EPN_sizeplusemo_BF_", scaling.factor[k], ".rds")) # save model
-  EPN.sizeplusemo.BF <- readRDS(paste0(wd, "/models/EPN_sizeplusemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### interactive effects of size and emotion
-  # EPN.sizebyemo.BF <- lmBF(EPN~size*emo,
-  #                         data.EEG.trial,
-  #                         whichRandom=c("participant", "word"), # random effects
-  #                         rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                         rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                         rscaleCont="medium", # prior scale for standardized slopes
-  #                         iterations=niter) # number of MCMC iterations
-  # saveRDS(EPN.sizebyemo.BF, file=paste0(wd, "/models/EPN_sizebyemo_BF_", scaling.factor[k], ".rds")) # save model
-  EPN.sizebyemo.BF <- readRDS(paste0(wd, "/models/EPN_sizebyemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### main effects of contrast and emotion
-  # EPN.contplusemo.BF <- lmBF(EPN~cont+emo,
-  #                           data.EEG.trial,
-  #                           whichRandom=c("participant", "word"), # random effects
-  #                           rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                           rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                           rscaleCont="medium", # prior scale for standardized slopes
-  #                           iterations=niter) # number of MCMC iterations
-  # saveRDS(EPN.contplusemo.BF, file=paste0(wd, "/models/EPN_contplusemo_BF_", scaling.factor[k], ".rds")) # save model
-  EPN.contplusemo.BF <- readRDS(paste0(wd, "/models/EPN_contplusemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### interactive effects of contrast and emotion
-  # EPN.contbyemo.BF <- lmBF(EPN~cont*emo,
-  #                         data.EEG.trial,
-  #                         whichRandom=c("participant", "word"), # random effects
-  #                         rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                         rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                         rscaleCont="medium", # prior scale for standardized slopes
-  #                         iterations=niter) # number of MCMC iterations
-  # saveRDS(EPN.contbyemo.BF, file=paste0(wd, "/models/EPN_contbyemo_BF_", scaling.factor[k], ".rds")) # save model
-  EPN.contbyemo.BF <- readRDS(paste0(wd, "/models/EPN_contbyemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### main effects of size, contrast, and emotion
-  # EPN.sizepluscontplusemo.BF <- lmBF(EPN~size+cont+emo,
-  #                                   data.EEG.trial,
-  #                                   whichRandom=c("participant", "word"), # random effects
-  #                                   rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                                   rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                                   rscaleCont="medium", # prior scale for standardized slopes
-  #                                   iterations=niter) # number of MCMC iterations
-  # saveRDS(EPN.sizepluscontplusemo.BF, file=paste0(wd, "/models/EPN_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) # save model
-  EPN.sizepluscontplusemo.BF <- readRDS(paste0(wd, "/models/EPN_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### interactive effects of size, contrast, and emotion
-  # EPN.sizebycontbyemo.BF <- lmBF(EPN~size*cont*emo,
-  #                               data.EEG.trial,
-  #                               whichRandom=c("participant", "word"), # random effects
-  #                               rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                               rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                               rscaleCont="medium", # prior scale for standardized slopes
-  #                               iterations=niter) # number of MCMC iterations
-  # saveRDS(EPN.sizebycontbyemo.BF, file=paste0(wd, "/models/EPN_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) # save model
-  EPN.sizebycontbyemo.BF <- readRDS(paste0(wd, "/models/EPN_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) # load model
-
-  ### model comparison across scaling factors
+  
+  ### load models
+  EPN.sizeplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_sizeplusemo_BF_", scaling.factor[k], ".rds"))
+  
+  EPN.sizebyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_sizebyemo_BF_", scaling.factor[k], ".rds"))
+  
+  EPN.contplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_contplusemo_BF_", scaling.factor[k], ".rds"))
+  
+  EPN.contbyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_contbyemo_BF_", scaling.factor[k], ".rds")) 
+  
+  EPN.sizepluscontplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) 
+  
+  EPN.sizebycontbyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) 
+  
   # BFs
   compare.EPN.BF[, k] <- c(
     exp(EPN.sizeplusemo.BF@bayesFactor$bf[1]),
@@ -1998,67 +1974,104 @@ compare.EPN <- data.frame(
   "med" = compare.EPN.BF[, 2], "med.p.err" = compare.EPN.perc.err[, 2],
   "wid" = compare.EPN.BF[, 3], "wid.p.err" = compare.EPN.perc.err[, 3]
 )
-compare.EPN <- compare.EPN[order(compare.EPN$med, decreasing = TRUE), ] # sort according to medium scaling factor (in descending order)
+
+# sort according to medium scaling factor (in descending order)
+compare.EPN <- compare.EPN[order(compare.EPN$med, decreasing = TRUE), ]
+
+# nicer table
 kable(format(compare.EPN, scientific = TRUE))
 ```
 
-When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model `r ifelse(compare.EPN[1, 4]<1, "null", as.character(compare.EPN[1, 1]))` ought to be preferred.   
-The best model (`r as.character(compare.EPN[1, 1])`) explains the observed data `r format(ifelse(compare.EPN[1, 4]>1, compare.EPN[1, 4]/compare.EPN[2, 4], 1/compare.EPN[1, 4]), scientific=TRUE)` times better than the second best model (`r as.character(compare.EPN[2, 1])`).   
+When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model `r ifelse(compare.EPN[1, 4] < 1, "null", as.character(compare.EPN[1, 1]))` ought to be preferred.   
+The best model (`r as.character(compare.EPN[1, 1])`) explains the observed data `r format(ifelse(compare.EPN[1, 4] > 1, compare.EPN[1, 4]/compare.EPN[2, 4], 1/compare.EPN[1, 4]), scientific = TRUE)` times better than the second best model (`r as.character(compare.EPN[2, 1])`).   
 
 ### Paired comparisons
 
 ```{r EPN_posthoc}
 # interactions of interest (i.e., always negative vs. neutral)
-EPN.posthocBF <- data.EEG.trial %>% # data frame
-  select(participant, cond, EPN) %>% # select only variables of interest
-  summarySEwithin(data = ., measurevar = "EPN", withinvars = c("participant", "cond")) %>% # summary
+EPN.posthocBF <- data.EEG.trial %>%
+  select(participant, cond, EPN) %>%
+  summarySEwithin(data = ., measurevar = "EPN", withinvars = c("participant", "cond")) %>%
   split(.$cond) # split according to condition
 
-compare.EPN.posthocBF <- matrix(NA, 4, length(scaling.factor)) # preallocate matrix with all BF10
-compare.EPN.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor)) # preallocate matrix with all % errors
+# preallocate matrix with all BF10
+compare.EPN.posthocBF <- matrix(NA, 4, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.EPN.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor)) 
 
-for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# ### uncomment to recompute models ###
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# 
+#   ### large, dark, negative vs. neutral
+#   EPN.posthocBF.large.dark.negVSneut <- ttestBF(
+#     EPN.posthocBF$`negative large dark`$EPN, # first condition
+#     EPN.posthocBF$`neutral large dark`$EPN, # second condition
+#     mu = 0, # null hypothesis (mean difference = 0)
+#     paired = TRUE, # paired sample test
+#     iterations = niter, # number of MCMC iterations
+#     rscale = scaling.factor[k] # scaling factor
+#   )
+# 
+#   saveRDS(EPN.posthocBF.large.dark.negVSneut, # save model
+#           file = paste0(getwd(), "/EEG/main/models/EPN_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds"))
+# 
+#   ### small, dark, negative vs. neutral
+#   EPN.posthocBF.small.dark.negVSneut <- ttestBF(
+#     EPN.posthocBF$`negative small dark`$EPN,
+#     EPN.posthocBF$`neutral small dark`$EPN,
+#     mu = 0,
+#     paired = TRUE,
+#     iterations = niter,
+#     rscale = scaling.factor[k]
+#   )
+# 
+#   saveRDS(EPN.posthocBF.small.dark.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/EPN_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds"))
+# 
+#   ### large, bright, negative vs. neutral
+#   EPN.posthocBF.large.bright.negVSneut <- ttestBF(
+#     EPN.posthocBF$`negative large bright`$EPN,
+#     EPN.posthocBF$`neutral large bright`$EPN,
+#     mu = 0,
+#     paired = TRUE,
+#     iterations = niter,
+#     rscale = scaling.factor[k]
+#   )
+# 
+#   saveRDS(EPN.posthocBF.large.bright.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/EPN_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds"))
+# 
+#   ### small, bright, negative vs. neutral
+#   EPN.posthocBF.small.bright.negVSneut <- ttestBF(
+#     EPN.posthocBF$`negative small bright`$EPN,
+#     EPN.posthocBF$`neutral small bright`$EPN,
+#     mu = 0,
+#     iterations = niter,
+#     paired = TRUE,
+#     rscale = scaling.factor[k]
+#   )
+# 
+#   saveRDS(EPN.posthocBF.small.bright.negVSneut,
+#           file = paste0(getwd(), "/EEG/main/models/EPN_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds"))
+# 
+# }
 
-  # large, dark, negative vs. neutral
-  # EPN.posthocBF.large.dark.negVSneut <- ttestBF(EPN.posthocBF$`negative large dark`$EPN, # first condition
-  #                                              EPN.posthocBF$`neutral large dark`$EPN, # second condition
-  #                                              mu=0, # null hypothesis (mean difference=0)
-  #                                              paired=TRUE, # paired sample test
-  #                                              iterations=niter, # number of MCMC iterations
-  #                                              rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(EPN.posthocBF.large.dark.negVSneut, file=paste0(wd, "/models/EPN_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds")) # save model
-  EPN.posthocBF.large.dark.negVSneut <- readRDS(paste0(wd, "/models/EPN_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds")) # load model
-
-  # small, dark, negative vs. neutral
-  # EPN.posthocBF.small.dark.negVSneut <- ttestBF(EPN.posthocBF$`negative small dark`$EPN, # first condition
-  #                                              EPN.posthocBF$`neutral small dark`$EPN, # second condition
-  #                                              mu=0, # null hypothesis (mean difference=0)
-  #                                              paired=TRUE, # paired sample test
-  #                                              iterations=niter, # number of MCMC iterations
-  #                                              rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(EPN.posthocBF.small.dark.negVSneut, file=paste0(wd, "/models/EPN_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds")) # save model
-  EPN.posthocBF.small.dark.negVSneut <- readRDS(paste0(wd, "/models/EPN_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds")) # load model
-
-  # large, bright, negative vs. neutral
-  # EPN.posthocBF.large.bright.negVSneut <- ttestBF(EPN.posthocBF$`negative large bright`$EPN, # first condition
-  #                                                EPN.posthocBF$`neutral large bright`$EPN, # second condition
-  #                                                mu=0, # null hypothesis (mean difference=0)
-  #                                                paired=TRUE, # paired sample test
-  #                                                iterations=niter, # number of MCMC iterations
-  #                                                rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(EPN.posthocBF.large.bright.negVSneut, file=paste0(wd, "/models/EPN_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds")) # save model
-  EPN.posthocBF.large.bright.negVSneut <- readRDS(paste0(wd, "/models/EPN_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds")) # load model
-
-  # small, bright, negative vs. neutral
-  # EPN.posthocBF.small.bright.negVSneut <- ttestBF(EPN.posthocBF$`negative small bright`$EPN, # first condition
-  #                                                EPN.posthocBF$`neutral small bright`$EPN, # second condition
-  #                                                mu=0, # null hypothesis (mean difference=0)
-  #                                                iterations=niter, # number of MCMC iterations
-  #                                                paired=TRUE, # paired sample test
-  #                                                rscale=scaling.factor[k]) # scaling factor
-  # saveRDS(EPN.posthocBF.small.bright.negVSneut, file=paste0(wd, "/models/EPN_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds")) # save model
-  EPN.posthocBF.small.bright.negVSneut <- readRDS(paste0(wd, "/models/EPN_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds")) # load model
-
+### model comparison across scaling factors
+for (k in 1:length(scaling.factor)) {
+  
+  ### load models
+  EPN.posthocBF.large.dark.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_posthocBF_large_dark_negVSneut_", scaling.factor[k], ".rds"))
+  
+  EPN.posthocBF.small.dark.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_posthocBF_small_dark_negVSneut_", scaling.factor[k], ".rds"))
+  
+  EPN.posthocBF.large.bright.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_posthocBF_large_bright_negVSneut_", scaling.factor[k], ".rds"))
+  
+  EPN.posthocBF.small.bright.negVSneut <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_posthocBF_small_bright_negVSneut_", scaling.factor[k], ".rds"))
+  
   ### model comparison
   compare.EPN.posthocBF[, k] <- c(
     exp(EPN.posthocBF.large.dark.negVSneut@bayesFactor$bf[1]),
@@ -2083,6 +2096,8 @@ compare.EPN.posthocBF <- data.frame(
   "med" = compare.EPN.posthocBF[, 2], "med.p.err" = compare.EPN.posthocBF.perc.err[, 2],
   "wid" = compare.EPN.posthocBF[, 3], "wid.p.err" = compare.EPN.posthocBF.perc.err[, 3]
 )
+
+# nicer table
 kable(format(compare.EPN.posthocBF, scientific = TRUE), digits = 2)
 ```
 
@@ -2091,28 +2106,43 @@ Follow-up contrasts reveal that *emotion* may explain changes in EPN amplitude w
 ### Exploratory model selection
 
 ```{r EPN_expl_modelselect}
-# preallocate matrices with all BFs
-compare.EPN.anovaBF.temp <- matrix(NA, 7, length(scaling.factor)) # BFs
-compare.EPN.anovaBF.perc.err.temp <- matrix(NA, 7, length(scaling.factor)) # % errors
+# preallocate matrix with all BF10
+compare.EPN.anovaBF.temp <- matrix(NA, 7, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.EPN.anovaBF.perc.err.temp <- matrix(NA, 7, length(scaling.factor))
 
-for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# ### uncomment to recompute models ###
+# ### How important is each effect/interaction if we remove it from the full model?
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# 
+#   EPN.anovaBF <- anovaBF(
+#     EPN ~ size * cont * emo, # formula
+#     data.EEG.trial, # data
+#     whichModels = "top", # test all models created by removing a main effect or interaction from the full model
+#     whichRandom = c("participant", "word"), # random effects
+#     rscaleFixed = scaling.factor[k], # scaling factor of prior on effect size
+#     rscaleRandom = "nuisance", # prior scale for standardized random effects
+#     iterations = niter # number of MCMC iterations
+#   )
+#   
+#   saveRDS(EPN.anovaBF,
+#           file = paste0(getwd(), "/EEG/main/models/EPN_anovaBF_", scaling.factor[k], ".rds"))
+# 
+# }
 
-  # How important is each effect/interaction if we remove it from the full model?
-  # EPN.anovaBF <- anovaBF(EPN~size*cont*emo, # formula
-  #                       data.EEG.trial, # data
-  #                       whichModels="top", # test all models created by removing a main effect or interaction from the full model
-  #                       whichRandom=c("participant", "word"), # random effects
-  #                       rscaleFixed=scaling.factor[k], # scaling factor of prior on effect size
-  #                       rscaleRandom="nuisance", # prior scale for standardized random effects
-  #                       iterations=niter) # number of MCMC iterations
-  # saveRDS(EPN.anovaBF, file=paste0(wd, "/models/EPN_anovaBF_", scaling.factor[k], ".rds")) # save model
-  EPN.anovaBF <- readRDS(paste0(wd, "/models/EPN_anovaBF_", scaling.factor[k], ".rds")) # load model
-
-  ### model comparison across scaling factors
+### model comparison across scaling factors
+for (k in 1:length(scaling.factor)) {
+  
+  ### load model
+  EPN.anovaBF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/EPN_anovaBF_", scaling.factor[k], ".rds"))
+  
   # BFs
   compare.EPN.anovaBF.temp[, k] <- exp(EPN.anovaBF@bayesFactor$bf)
+  
   # percentage of error
   compare.EPN.anovaBF.perc.err.temp[, k] <- EPN.anovaBF@bayesFactor$error * 100
+  
 }
 
 # summary exploratory analysis
@@ -2122,12 +2152,225 @@ compare.EPN.anovaBF <- data.frame(
   "med" = compare.EPN.anovaBF.temp[, 2], "med.p.err" = compare.EPN.anovaBF.perc.err.temp[, 2],
   "wid" = compare.EPN.anovaBF.temp[, 3], "wid.p.err" = compare.EPN.anovaBF.perc.err.temp[, 3]
 )
-compare.EPN.anovaBF <- compare.EPN.anovaBF[order(compare.EPN.anovaBF$med, decreasing = TRUE), ] # sort according to medium scaling factor (in descending order)
+
+# sort according to medium scaling factor (in descending order)
+compare.EPN.anovaBF <- compare.EPN.anovaBF[order(compare.EPN.anovaBF$med, decreasing = TRUE), ]
+
+# nicer table
 kable(format(compare.EPN.anovaBF, scientific = TRUE), digits = 2)
 ```
 
 Exploratory analyses further suggest that omitting the factor *contrast* from the full model improves fitting by `r compare.EPN.anovaBF$med[1]` times. Removing *contrast x size*, *contrast x emotion*, *emotion x size*, and *size x contrast x emotion* also improves fitting by `r compare.EPN.anovaBF$med[2]`, `r compare.EPN.anovaBF$med[3]`, `r compare.EPN.anovaBF$med[4]`, and `r compare.EPN.anovaBF$med[5]` times, respectively.   
-Conversely, omitting the factor *emotion* lowers the explanatory value of the resulting model by `r 1/compare.EPN.anovaBF$med[6]` times. Finally, omitting the factor *size* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r format(1/compare.EPN.anovaBF$med[7], scientific=TRUE)` times.
+Conversely, omitting the factor *emotion* lowers the explanatory value of the resulting model by `r 1/compare.EPN.anovaBF$med[6]` times. Finally, omitting the factor *size* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r format(1/compare.EPN.anovaBF$med[7], scientific = TRUE)` times.
+
+## LPP
+
+```{r LPP_summary}
+summarySEwithin(data.EEG.trial, 
+                "LPP", 
+                withinvars = c("size", "cont", "emo"), 
+                idvar = "participant") %>%
+  kable(., digits = 2)
+```
+
+```{r LPP_models}
+# preallocate matrix with all BFs
+compare.LPP.BF <- matrix(NA, 6, length(scaling.factor))
+# preallocate matrix with all % errors
+compare.LPP.perc.err <- matrix(NA, 6, length(scaling.factor))
+
+# ### uncomment to recompute models ###
+# for (k in 1:length(scaling.factor)) { # loop through scaling factors
+# 
+#   ### main effects of size and emotion
+#   LPP.sizeplusemo.BF <- lmBF(
+#     LPP ~ size + emo, # formula
+#     data.EEG.trial, # data
+#     whichRandom = c("participant", "word"), # random effects
+#     rscaleFixed = scaling.factor[k], # scaling factor of prior on effect size
+#     rscaleRandom = "nuisance", # prior scale for standardized random effects
+#     rscaleCont = "medium", # prior scale for standardized slopes
+#     iterations = niter # number of MCMC iterations
+#   )
+#   
+#   saveRDS(LPP.sizeplusemo.BF,  # save model
+#           file = paste0(getwd(), "/EEG/main/models/LPP_sizeplusemo_BF_", scaling.factor[k], ".rds"))
+#   
+#   ### interactive effects of size and emotion
+#   LPP.sizebyemo.BF <- lmBF(
+#     LPP ~ size * emo,
+#     data.EEG.trial,
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(LPP.sizebyemo.BF, # save model
+#           file = paste0(getwd(), "/EEG/main/models/LPP_sizebyemo_BF_", scaling.factor[k], ".rds"))
+# 
+#   ### main effects of contrast and emotion
+#   LPP.contplusemo.BF <- lmBF(
+#     LPP ~ cont + emo,
+#     data.EEG.trial,
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(LPP.contplusemo.BF, # save model
+#           file = paste0(getwd(), "/EEG/main/models/LPP_contplusemo_BF_", scaling.factor[k], ".rds")) 
+#   
+#   ### interactive effects of contrast and emotion
+#   LPP.contbyemo.BF <- lmBF(
+#     LPP ~ cont * emo,
+#     data.EEG.trial,
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(LPP.contbyemo.BF, # save model
+#           file = paste0(getwd(), "/EEG/main/models/LPP_contbyemo_BF_", scaling.factor[k], ".rds")) 
+#   
+#   ### main effects of size, contrast, and emotion
+#   LPP.sizepluscontplusemo.BF <- lmBF(
+#     LPP ~ size + cont + emo,
+#     data.EEG.trial,
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(LPP.sizepluscontplusemo.BF, # save model
+#           file = paste0(getwd(), "/EEG/main/models/LPP_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) 
+#   
+#   ### interactive effects of size, contrast, and emotion
+#   LPP.sizebycontbyemo.BF <- lmBF(
+#     LPP ~ size * cont * emo,
+#     data.EEG.trial,
+#     whichRandom = c("participant", "word"),
+#     rscaleFixed = scaling.factor[k],
+#     rscaleRandom = "nuisance",
+#     rscaleCont = "medium",
+#     iterations = niter
+#   )
+#   
+#   saveRDS(LPP.sizebycontbyemo.BF, # save model
+#           file = paste0(getwd(), "/EEG/main/models/LPP_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) 
+# }
+
+### model comparison across scaling factors
+for (k in 1:length(scaling.factor)) { # loop through scaling factors
+  
+  ### load models
+  LPP.sizeplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_sizeplusemo_BF_", scaling.factor[k], ".rds"))
+  
+  LPP.sizebyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_sizebyemo_BF_", scaling.factor[k], ".rds"))
+  
+  LPP.contplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_contplusemo_BF_", scaling.factor[k], ".rds"))
+  
+  LPP.contbyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_contbyemo_BF_", scaling.factor[k], ".rds")) 
+  
+  LPP.sizepluscontplusemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_sizepluscontplusemo_BF_", scaling.factor[k], ".rds")) 
+  
+  LPP.sizebycontbyemo.BF <- readRDS(
+    paste0(getwd(), "/EEG/main/models/LPP_sizebycontbyemo_BF_", scaling.factor[k], ".rds")) 
+  
+  # BFs
+  compare.LPP.BF[, k] <- c(
+    exp(LPP.sizeplusemo.BF@bayesFactor$bf[1]),
+    exp(LPP.sizebyemo.BF@bayesFactor$bf[1]),
+    exp(LPP.contplusemo.BF@bayesFactor$bf[1]),
+    exp(LPP.contbyemo.BF@bayesFactor$bf[1]),
+    exp(LPP.sizepluscontplusemo.BF@bayesFactor$bf[1]),
+    exp(LPP.sizebycontbyemo.BF@bayesFactor$bf[1])
+  )
+  # percentage of error
+  compare.LPP.perc.err[, k] <- c(
+    LPP.sizeplusemo.BF@bayesFactor$error[1] * 100,
+    LPP.sizebyemo.BF@bayesFactor$error[1] * 100,
+    LPP.contplusemo.BF@bayesFactor$error[1] * 100,
+    LPP.contbyemo.BF@bayesFactor$error[1] * 100,
+    LPP.sizepluscontplusemo.BF@bayesFactor$error[1] * 100,
+    LPP.sizebycontbyemo.BF@bayesFactor$error[1] * 100
+  )
+}
+
+# summary confirmatory analysis
+compare.LPP <- data.frame(
+  "model" = c("size + emo", "size x emo", "contr + emo", "cont x emo", "size + cont + emo", "size x cont x emo"),
+  "nar" = compare.LPP.BF[, 1], "nar.p.err" = compare.LPP.perc.err[, 1],
+  "med" = compare.LPP.BF[, 2], "med.p.err" = compare.LPP.perc.err[, 2],
+  "wid" = compare.LPP.BF[, 3], "wid.p.err" = compare.LPP.perc.err[, 3]
+)
+
+# sort according to medium scaling factor (in descending order)
+compare.LPP <- compare.LPP[order(compare.LPP$med, decreasing = TRUE), ]
+
+# nicer table
+kable(format(compare.LPP, scientific = TRUE))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## LPP
 
