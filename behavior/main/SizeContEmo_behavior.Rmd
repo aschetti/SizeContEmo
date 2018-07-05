@@ -52,11 +52,10 @@ scaling.factor <- c(.5, .707, 1) # scaling factors of JZS prior: narrow, medium,
 ```
 
 ```{r data}
-data.behav <- read_csv(here::here("/behavior/main/data_behavior.csv")) %>% # load data
+data.behav <- read_csv(here::here("behavior/main/data_behavior.csv")) %>% # load data
   mutate(
-    cond = paste(size, cont, sep = "_"), # variable with merged conditions
-    size = relevel(as.factor(size), ref = "large"), # re-reference size to large
-    cont = relevel(as.factor(cont), ref = "dark") # re-reference contrast to dark
+    cond = as.factor(paste(size, cont, sep = "_")), # variable with merged conditions
+    cont = recode(factor(cont), "dark" = "high", "bright" = "low") # recode contrast levels
   )
 ```
 
@@ -189,8 +188,8 @@ compare.rt <- compare.rt[order(compare.rt$med, decreasing = TRUE), ]
 kable(format(compare.rt, scientific = TRUE), digits = 2)
 ```
    
-When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model *`r ifelse(compare.rt[1,4]<1,"null",as.character(compare.rt[1,1]))`* ought to be preferred.   
-The best model (*`r ifelse(compare.rt[1,4]>1,as.character(compare.rt[1,1]),"null")`*) explains the observed data `r ifelse(compare.rt[1,4]>1,compare.rt[1,4]/compare.rt[2,4],1/compare.rt[1,4])` times better than the second best model (*`r ifelse(compare.rt[1,4]>1,as.character(compare.rt[2,1]),as.character(compare.rt[1,1]))`*).   
+When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model *`r ifelse(compare.rt[1,4] < 1, "null", as.character(compare.rt[1,1]))`* ought to be preferred.   
+The best model (*`r ifelse(compare.rt[1,4] > 1,as.character(compare.rt[1,1]), "null")`*) explains the observed data `r ifelse(compare.rt[1,4] > 1,compare.rt[1,4]/compare.rt[2,4], 1/compare.rt[1,4])` times better than the second best model (*`r ifelse(compare.rt[1,4] > 1, as.character(compare.rt[2,1]), as.character(compare.rt[1,1]))`*).   
 
 ## Paired comparisons
 
@@ -198,12 +197,10 @@ The best model (*`r ifelse(compare.rt[1,4]>1,as.character(compare.rt[1,1]),"null
 data.rt <- summary.rt %>%
   split(.$cond) # split according to condition
 
-# preallocate matrix with all BF10
 compare.rt.posthocBF <- matrix(NA, 4, length(scaling.factor))
-# preallocate matrix with all % errors
 compare.rt.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor)) 
 
-for (k in 1:length(scaling.factor)) { # loop through scaling factors
+for (k in 1:length(scaling.factor)) {
 
   # large, dark vs. bright
   rt.posthocBF.large.darkVSbright <- ttestBF(
@@ -253,16 +250,15 @@ for (k in 1:length(scaling.factor)) { # loop through scaling factors
     exp(rt.posthocBF.bright.largeVSsmall@bayesFactor$bf[1])
   )
 
-  # percentage of error
   compare.rt.posthocBF.perc.err[, k] <- c(
     rt.posthocBF.large.darkVSbright@bayesFactor$error[1] * 100,
     rt.posthocBF.small.darkVSbright@bayesFactor$error[1] * 100,
     rt.posthocBF.dark.largeVSsmall@bayesFactor$error[1] * 100,
     rt.posthocBF.bright.largeVSsmall@bayesFactor$error[1] * 100
   )
+  
 }
 
-# summary
 compare.rt.posthocBF <- data.frame(
   "comparison" = c("large.darkVSbright", "small.darkVSbright",
                    "dark.largeVSsmall", "bright.largeVSsmall"),
@@ -274,20 +270,17 @@ compare.rt.posthocBF <- data.frame(
   "wid.p.err" = compare.rt.posthocBF.perc.err[, 3]
 )
 
-# sort according to medium scaling factor (in descending order)
 compare.rt.posthocBF <- compare.rt.posthocBF[order(compare.rt.posthocBF$med, decreasing = TRUE), ]
-
-# nicer table
 kable(format(compare.rt.posthocBF, scientific = TRUE), digits = 2)
 ```
 
 When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, we observe longer RTs for:
 
-* words in *small* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r format(compare.rt.posthocBF[1,4],scientific=TRUE)` $\pm$ `r round(compare.rt.posthocBF[1,5],digits=2)`);
-* words in *low* contrast presented in *small vs. large* font ($\sf{BF_{10}}$=`r format(compare.rt.posthocBF[2,4],scientific=TRUE)` $\pm$ `r round(compare.rt.posthocBF[2,5],digits=2)`);
-* words in *large* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r compare.rt.posthocBF[3,4]` $\pm$ `r round(compare.rt.posthocBF[3,5],digits=2)`).
+* words in *small* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r format(compare.rt.posthocBF[1,4], scientific = TRUE)` $\pm$ `r round(compare.rt.posthocBF[1,5], digits = 2)`);
+* words in *low* contrast presented in *small vs. large* font ($\sf{BF_{10}}$=`r format(compare.rt.posthocBF[2,4], scientific = TRUE)` $\pm$ `r round(compare.rt.posthocBF[2,5], digits = 2)`);
+* words in *large* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r compare.rt.posthocBF[3,4]` $\pm$ `r round(compare.rt.posthocBF[3,5], digits = 2)`).
 
-The difference between words in *high* contrast presented in *large vs. small* font is non-conclusive ($\sf{BF_{10}}$=`r compare.rt.posthocBF[4,4]` $\pm$ `r round(compare.rt.posthocBF[4,5],digits=2)`).
+The difference between words in *high* contrast presented in *large vs. small* font is non-conclusive ($\sf{BF_{10}}$=`r compare.rt.posthocBF[4,4]` $\pm$ `r round(compare.rt.posthocBF[4,5], digits = 2)`).
 
 ***
 ***
@@ -328,21 +321,19 @@ pirateplot(
 ```
 
 ```{r acc_models}
-# preallocate matrix with all BFs
 compare.acc.BF <- matrix(NA, 4, length(scaling.factor))
-# preallocate matrix with all % errors
 compare.acc.perc.err <- matrix(NA, 4, length(scaling.factor))
 
-for (k in 1:length(scaling.factor)) { # loop through scaling factors
+for (k in 1:length(scaling.factor)) {
 
   ### main effect of size
-  acc.BF.size <- lmBF(freqs ~ size, # formula
-    data.acc, # data
-    whichRandom = "ssj", # random effects
-    rscaleFixed = scaling.factor[k], # scaling factor of prior on effect size
-    rscaleRandom = "nuisance", # prior scale for standardized random effects
-    rscaleCont = "medium", # prior scale for standardized slopes
-    iterations = niter # number of MCMC iterations
+  acc.BF.size <- lmBF(freqs ~ size,
+    data.acc,
+    whichRandom = "ssj",
+    rscaleFixed = scaling.factor[k],
+    rscaleRandom = "nuisance",
+    rscaleCont = "medium",
+    iterations = niter
   )
 
   ### main effect of contrast
@@ -376,7 +367,6 @@ for (k in 1:length(scaling.factor)) { # loop through scaling factors
   )
 
   ### model comparison
-  # BFs
   compare.acc.BF[, k] <- c(
     exp(acc.BF.size@bayesFactor$bf[1]),
     exp(acc.BF.cont@bayesFactor$bf[1]),
@@ -384,16 +374,15 @@ for (k in 1:length(scaling.factor)) { # loop through scaling factors
     exp(acc.BF.full@bayesFactor$bf[1])
   )
   
-  # percentage of error
   compare.acc.perc.err[, k] <- c(
     acc.BF.size@bayesFactor$error[1] * 100,
     acc.BF.cont@bayesFactor$error[1] * 100,
     acc.BF.sizepluscont@bayesFactor$error[1] * 100,
     acc.BF.full@bayesFactor$error[1] * 100
   )
+  
 }
 
-# summary confirmatory analysis
 compare.acc <- data.frame(
   "model" = c("size", "contr", "size + contr", "size x cont"),
   "nar" = compare.acc.BF[, 1], "nar.p.err" = compare.acc.perc.err[, 1],
@@ -401,37 +390,32 @@ compare.acc <- data.frame(
   "wid" = compare.acc.BF[, 3], "wid.p.err" = compare.acc.perc.err[, 3]
 )
 
-# sort according to medium scaling factor (in descending order)
 compare.acc <- compare.acc[order(compare.acc$med, decreasing = TRUE), ] 
-
-# nicer table
 kable(format(compare.acc, scientific = TRUE), digits = 2)
 ```
    
-When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model *`r ifelse(compare.acc[1,4]<1,"null",as.character(compare.acc[1,1]))`* ought to be preferred.   
-The best model (*`r ifelse(compare.acc[1,4]>1,as.character(compare.acc[1,1]),"null")`*) explains the observed data `r ifelse(compare.acc[1,4]>1,compare.acc[1,4]/compare.acc[2,4],1/compare.acc[1,4])` times better than the second best model (*`r ifelse(compare.acc[1,4]>1,as.character(compare.acc[2,1]),as.character(compare.acc[1,1]))`*).
+When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model *`r ifelse(compare.acc[1,4]<1, "null", as.character(compare.acc[1,1]))`* ought to be preferred.   
+The best model (*`r ifelse(compare.acc[1,4] > 1,as.character(compare.acc[1,1]), "null")`*) explains the observed data `r ifelse(compare.acc[1,4] > 1,compare.acc[1,4]/compare.acc[2,4], 1/compare.acc[1,4])` times better than the second best model (*`r ifelse(compare.acc[1,4] > 1,as.character(compare.acc[2,1]), as.character(compare.acc[1,1]))`*).
 
 ## Paired comparisons
 
 ```{r acc_posthoc}
 data.acc <- data.acc %>%
-  split(.$cond) # split according to condition
+  split(.$cond)
 
-# preallocate matrix with all BF10
 compare.acc.posthocBF <- matrix(NA, 4, length(scaling.factor))
-# preallocate matrix with all % errors
 compare.acc.posthocBF.perc.err <- matrix(NA, 4, length(scaling.factor))
 
-for (k in 1:length(scaling.factor)) { # loop through scaling factors
+for (k in 1:length(scaling.factor)) {
 
   # large, dark vs. bright
   acc.posthocBF.large.darkVSbright <- ttestBF(
-    data.acc$large_dark$freqs, # first condition
-    data.acc$large_bright$freqs, # second condition
-    mu = 0, # null hypothesis (mean difference = 0)
-    paired = TRUE, # paired sample test
-    iterations = niter, # number of MCMC iterations
-    rscale = scaling.factor[k] # scaling factor
+    data.acc$large_dark$freqs,
+    data.acc$large_bright$freqs,
+    mu = 0,
+    paired = TRUE,
+    iterations = niter,
+    rscale = scaling.factor[k]
   )
 
   # small, dark vs. bright
@@ -471,16 +455,16 @@ for (k in 1:length(scaling.factor)) { # loop through scaling factors
     exp(acc.posthocBF.dark.largeVSsmall@bayesFactor$bf[1]),
     exp(acc.posthocBF.bright.largeVSsmall@bayesFactor$bf[1])
   )
-  # percentage of error
+
   compare.acc.posthocBF.perc.err[, k] <- c(
     acc.posthocBF.large.darkVSbright@bayesFactor$error[1] * 100,
     acc.posthocBF.small.darkVSbright@bayesFactor$error[1] * 100,
     acc.posthocBF.dark.largeVSsmall@bayesFactor$error[1] * 100,
     acc.posthocBF.bright.largeVSsmall@bayesFactor$error[1] * 100
   )
+  
 }
 
-# summary
 compare.acc.posthocBF <- data.frame(
   "comparison" = c("large.darkVSbright", "small.darkVSbright", 
                    "dark.largeVSsmall", "bright.largeVSsmall"),
@@ -492,19 +476,16 @@ compare.acc.posthocBF <- data.frame(
   "wid.p.err" = compare.acc.posthocBF.perc.err[, 3]
 )
 
-# soacc according to medium scaling factor (in descending order)
 compare.acc.posthocBF <- compare.acc.posthocBF[order(compare.acc.posthocBF$med, decreasing = TRUE), ]
-
-# nicer table
 kable(format(compare.acc.posthocBF, scientific = TRUE), digits = 2)
 ```
 
 When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, we observe lower accuracy for:
 
-* words in *small* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r format(compare.acc.posthocBF[1,4],scientific=TRUE)` $\pm$ `r round(compare.acc.posthocBF[1,5],digits=2)`);
-* words in *low* contrast presented in *small vs. large* font ($\sf{BF_{10}}$=`r format(compare.acc.posthocBF[2,4],scientific=TRUE)` $\pm$ `r round(compare.acc.posthocBF[2,5],digits=2)`).
+* words in *small* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r format(compare.acc.posthocBF[1,4], scientific = TRUE)` $\pm$ `r round(compare.acc.posthocBF[1,5], digits = 2)`);
+* words in *low* contrast presented in *small vs. large* font ($\sf{BF_{10}}$=`r format(compare.acc.posthocBF[2,4], scientific = TRUE)` $\pm$ `r round(compare.acc.posthocBF[2,5], digits = 2)`).
 
-No reliable accuracy difference is observed between words in *large* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r compare.acc.posthocBF[3,4]` $\pm$ `r round(compare.acc.posthocBF[3,5],digits=2)`) as well as words in *low* contrast presented in *large vs. small* font ($\sf{BF_{10}}$=`r compare.acc.posthocBF[4,4]` $\pm$ `r round(compare.acc.posthocBF[4,5],digits=2)`).
+No reliable accuracy difference is observed between words in *large* font presented in *low vs. high* contrast ($\sf{BF_{10}}$=`r compare.acc.posthocBF[3,4]` $\pm$ `r round(compare.acc.posthocBF[3,5], digits = 2)`) as well as words in *low* contrast presented in *large vs. small* font ($\sf{BF_{10}}$=`r compare.acc.posthocBF[4,4]` $\pm$ `r round(compare.acc.posthocBF[4,5], digits = 2)`).
 
 ***
 ***
