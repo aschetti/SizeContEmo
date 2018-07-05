@@ -260,8 +260,8 @@ for (k in 1:length(scaling.factor)) {
 }
 
 compare.rt.posthocBF <- data.frame(
-  "comparison" = c("large.darkVSbright", "small.darkVSbright",
-                   "dark.largeVSsmall", "bright.largeVSsmall"),
+  "comparison" = c("large.highVSlow", "small.highVSlow",
+                   "high.largeVSsmall", "low.largeVSsmall"),
   "nar" = compare.rt.posthocBF[, 1], 
   "nar.p.err" = compare.rt.posthocBF.perc.err[, 1],
   "med" = compare.rt.posthocBF[, 2],
@@ -466,8 +466,8 @@ for (k in 1:length(scaling.factor)) {
 }
 
 compare.acc.posthocBF <- data.frame(
-  "comparison" = c("large.darkVSbright", "small.darkVSbright", 
-                   "dark.largeVSsmall", "bright.largeVSsmall"),
+  "comparison" = c("large.highVSlow", "small.highVSlow", 
+                   "high.largeVSsmall", "low.largeVSsmall"),
   "nar" = compare.acc.posthocBF[, 1], 
   "nar.p.err" = compare.acc.posthocBF.perc.err[, 1],
   "med" = compare.acc.posthocBF[, 2], 
