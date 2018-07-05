@@ -13,7 +13,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-In this project we will investigate the electrophysiological correlates of the combined processing of basic visual properties (i.e., size and contrast) and the emotional content of simple words. 
+In this project we investigated the electrophysiological correlates of the combined processing of basic visual properties (i.e., size and contrast) and the emotional content of simple words. 
 
 ```{r setup_environment, echo = FALSE, warning = FALSE, message = FALSE}
 # set RNG seed
@@ -352,14 +352,15 @@ topos %>%
   dplyr::select(electrode, amplitude = "P1") %>%
   bind_cols(., electrodeLocs) %>% # bind electrode locations and amplitudes (necessary)
   topoplot(.,
-           limits = c(-.8, .8), # min-max amplitude
+           limits = c(-1, 1.5), # min-max amplitude
            chanLocs = electrodeLocs,
            method = "Biharmonic",
            palette = "viridis",
            interp_limit = "skirt",
            contour = TRUE,
            chan_marker = "point",
-           quantity = "amplitude"
+           quantity = "amplitude",
+           highlights = c("P7", "P9", "PO7", "O1", "O2", "PO8", "P8", "P10")
   ) +
   ggtitle("P1 (localizer)") +
   theme(
@@ -513,7 +514,7 @@ summarySEwithin(data.EEG.trial,
                 idvar = "word") %>%
   unite(visualfeats, c("size", "cont"), sep = " ") %>% # for graph
   pirateplot(
-    formula = P1 ~ emo + visualfeats, # dependent~independent variables
+    formula = P1 ~ emo + visualfeats, # dependent ~ independent variables
     data = ., # data frame
     main = "P1", # main title
     xlim = NULL, # x-axis: limits
@@ -544,7 +545,8 @@ topos %>%
            interp_limit = "skirt",
            contour = TRUE,
            chan_marker = "point",
-           quantity = "amplitude"
+           quantity = "amplitude",
+           highlights = c("TP7", "P7", "P9", "TP8", "P8", "P10")
   ) +
   ggtitle("N1 (localizer)") +
   theme(
@@ -749,14 +751,15 @@ topos %>%
   dplyr::select(electrode, amplitude = "EPN") %>%
   bind_cols(., electrodeLocs) %>%
   topoplot(.,
-           limits = c(-.25, .25), # min-max amplitude
+           limits = c(-.3, .4), # min-max amplitude
            chanLocs = electrodeLocs,
            method = "Biharmonic",
            palette = "viridis",
            interp_limit = "skirt",
            contour = TRUE,
            chan_marker = "point",
-           quantity = "amplitude"
+           quantity = "amplitude",
+           highlights = c("P7", "P9", "PO7", "PO3", "O1", "Oz", "Iz", "O2", "PO4", "PO8", "P8", "P10")
   ) +
   ggtitle("EPN (negative minus neutral)") +
   theme(
@@ -889,7 +892,7 @@ ggplot(
     xmin = 300,
     xmax = 500,
     ymin = -1,
-    ymax = 2,
+    ymax = 2.5,
     linetype = "solid",
     size = 2,
     color = "#de1d1d",
@@ -901,8 +904,7 @@ theme_classic(base_size = 20) +
       size = 28,
       hjust = .5,
       face = "bold"
-    ),
-    legend.position = "none"
+    )
   )
 ```
 
@@ -937,14 +939,15 @@ topos %>%
   dplyr::select(electrode, amplitude = "LPP") %>%
   bind_cols(., electrodeLocs) %>%
   topoplot(.,
-           limits = c(-1, 1), # min-max amplitude
+           limits = c(-1.5, 1.5), # min-max amplitude
            chanLocs = electrodeLocs,
            method = "Biharmonic",
            palette = "viridis",
            interp_limit = "skirt",
            contour = TRUE,
            chan_marker = "point",
-           quantity = "amplitude"
+           quantity = "amplitude",
+           highlights = c("P1", "Pz", "P2", "P4", "P6", "P8", "P10", "POz", "PO4", "PO8")
   ) +
   ggtitle("LPP (localizer)") +
   theme(
@@ -1008,7 +1011,7 @@ ggplot(
     alpha = .8
   ) +
   geom_vline(
-    xintercept = seq(-200, 1000, 50),
+    xintercept = seq(-200, 1000, 100),
     linetype = "dotted",
     color = "#999999",
     size = .8,
@@ -1066,7 +1069,7 @@ ggplot(
     y = expression(paste("amplitude (", mu, "V)"))
   ) +
   scale_x_continuous(
-    breaks = seq(-200, 1000, 50),
+    breaks = seq(-200, 1000, 100),
     limits = c(-100, 800)
   ) +
   scale_y_reverse(
@@ -1133,7 +1136,7 @@ Compare (against the null model) the following models:
 5. main effects of size, contrast, and emotion   
 6. interactive effects of size, contrast, and emotion   
 
-Then, compare the best competing models to understand which one should be preferred overall.
+Afterwards, compare the best competing models to understand which one should be preferred overall.
 
 ## P1
 
@@ -1792,7 +1795,7 @@ compare.N1.anovaBF <- compare.N1.anovaBF[order(compare.N1.anovaBF$med, decreasin
 kable(format(compare.N1.anovaBF, scientific = TRUE), digits = 2)
 ```
 
-Exploratory analyses further suggest that omitting the *emotion x size* interaction from the full model improves fitting by `r compare.N1.anovaBF$med[1]` times. Removing *contrast x emotion*, *emotion*, and *size x contrast x emotion* also improves fitting by `r compare.N1.anovaBF$med[2]`, `r compare.N1.anovaBF$med[3]`, and `r compare.N1.anovaBF$med[4]` times, respectively.   
+Exploratory analyses further suggest that omitting *emotion* from the full model improves fitting by `r compare.N1.anovaBF$med[1]` times. Removing *size x emotion*, *contrast x emotion*, and *size x contrast x emotion* also improves fitting by `r compare.N1.anovaBF$med[2]`, `r compare.N1.anovaBF$med[3]`, and `r compare.N1.anovaBF$med[4]` times, respectively.   
 Conversely, omitting the factor *size* or the *contrast x size* interaction lowers the explanatory value of the resulting model by `r format(1/compare.N1.anovaBF$med[5], scientific = TRUE)` and `r format(1/compare.N1.anovaBF$med[6], scientific = TRUE)` times. Finally, omitting the factor *contrast* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r format(1/compare.N1.anovaBF$med[7], scientific = TRUE)` times.
 
 ## EPN
@@ -2110,7 +2113,7 @@ compare.EPN.anovaBF <- compare.EPN.anovaBF[order(compare.EPN.anovaBF$med, decrea
 kable(format(compare.EPN.anovaBF, scientific = TRUE), digits = 2)
 ```
 
-Exploratory analyses further suggest that omitting the factor *contrast* from the full model improves fitting by `r compare.EPN.anovaBF$med[1]` times. Removing *contrast x size*, *contrast x emotion*, *emotion x size*, and *size x contrast x emotion* also improves fitting by `r compare.EPN.anovaBF$med[2]`, `r compare.EPN.anovaBF$med[3]`, `r compare.EPN.anovaBF$med[4]`, and `r compare.EPN.anovaBF$med[5]` times, respectively.   
+Exploratory analyses further suggest that omitting the factor *contrast* from the full model improves fitting by `r compare.EPN.anovaBF$med[1]` times. Removing *contrast x size*, *size x emotion*, *contrast x emotion*, and *size x contrast x emotion* also improves fitting by `r compare.EPN.anovaBF$med[2]`, `r compare.EPN.anovaBF$med[3]`, `r compare.EPN.anovaBF$med[4]`, and `r compare.EPN.anovaBF$med[5]` times, respectively.   
 Conversely, omitting the factor *emotion* lowers the explanatory value of the resulting model by `r 1/compare.EPN.anovaBF$med[6]` times. Finally, omitting the factor *size* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r format(1/compare.EPN.anovaBF$med[7], scientific = TRUE)` times.
 
 ## LPP
@@ -2799,7 +2802,7 @@ compare.P1.peakamp.anovaBF <- compare.P1.peakamp.anovaBF[order(compare.P1.peakam
 kable(format(compare.P1.peakamp.anovaBF, scientific = TRUE), digits = 2)
 ```
 
-Exploratory analyses suggest that omitting the *contrast x emotion* interaction from the full model improves fitting by `r compare.P1.peakamp.anovaBF$med[1]` times. Removing *emotion*, *size x emotion*, and *size x contrast x emotion* also improves fitting by `r compare.P1.peakamp.anovaBF$med[2]`, `r compare.P1.peakamp.anovaBF$med[3]`, and `r compare.P1.peakamp.anovaBF$med[4]` times, respectively.   
+Exploratory analyses suggest that omitting *emotion* from the full model improves fitting by `r compare.P1.peakamp.anovaBF$med[1]` times. Removing *contrast x emotion*, *size x emotion*, and *size x contrast x emotion* also improves fitting by `r compare.P1.peakamp.anovaBF$med[2]`, `r compare.P1.peakamp.anovaBF$med[3]`, and `r compare.P1.peakamp.anovaBF$med[4]` times, respectively.   
 Conversely, omitting  *contrast x size* or *contrast* lowers the explanatory value of the resulting model by `r 1/compare.P1.peakamp.anovaBF$med[5]` and `r 1/compare.P1.peakamp.anovaBF$med[6]` times, respectively. Finally, omitting the factor *size* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r 1/compare.P1.peakamp.anovaBF$med[7]` times.
 
 ### Peak latency
@@ -2819,11 +2822,11 @@ kable(summary.P1.peaklat, digits = 2)
 pirateplot(
   formula = value ~ emo + visualfeats,
   data = subset(data.peaks, component == "P1" & var == "peak.lat"),
-  main = "P1 peak amplitude",
+  main = "P1 peak latency",
   xlim = NULL,
   xlab = "",
   ylim = c(60, 150),
-  ylab = expression(paste("amplitude (", mu, "V)")),
+  ylab = "time (ms)",
   inf.method = "hdi",
   inf.within = "participant",
   hdi.iter = 5000,
@@ -3133,7 +3136,7 @@ compare.P1.peaklat.anovaBF <- compare.P1.peaklat.anovaBF[order(compare.P1.peakla
 kable(format(compare.P1.peaklat.anovaBF, scientific = TRUE), digits = 2)
 ```
 
-Exploratory analyses suggest that omitting *emotion* from the full model improves fitting by `r compare.P1.peaklat.anovaBF$med[1]` times. Removing *size*, *size x contrast x emotion*, *size x emotion*, and *contrast x emotion* also improves fitting by `r compare.P1.peaklat.anovaBF$med[2]`, `r compare.P1.peaklat.anovaBF$med[3]`, `r compare.P1.peaklat.anovaBF$med[4]`, and `r compare.P1.peaklat.anovaBF$med[5]` times, respectively.   
+Exploratory analyses suggest that omitting *size* from the full model improves fitting by `r compare.P1.peaklat.anovaBF$med[1]` times. Removing *emotion*, *contrast x emotion*, *size x emotion*, and *size x contrast x emotion* also improves fitting by `r compare.P1.peaklat.anovaBF$med[2]`, `r compare.P1.peaklat.anovaBF$med[3]`, `r compare.P1.peaklat.anovaBF$med[4]`, and `r compare.P1.peaklat.anovaBF$med[5]` times, respectively.   
 Conversely, omitting  *contrast x size* lowers the explanatory value of the resulting model by `r 1/compare.P1.peaklat.anovaBF$med[6]` times. Finally, omitting the factor *contrast* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r 1/compare.P1.peaklat.anovaBF$med[7]` times.
 
 ## N1
@@ -3490,11 +3493,11 @@ kable(summary.N1.peaklat, digits = 2)
 pirateplot(
   formula = value ~ emo + visualfeats,
   data = subset(data.peaks, component == "N1" & var == "peak.lat"),
-  main = "N1 peak amplitude",
+  main = "N1 peak latency",
   xlim = NULL,
   xlab = "",
   ylim = c(150, 260),
-  ylab = expression(paste("amplitude (", mu, "V)")),
+  ylab = "time (ms)",
   inf.method = "hdi",
   inf.within = "participant",
   hdi.iter = 5000,
@@ -3806,7 +3809,7 @@ compare.N1.peaklat.anovaBF <- compare.N1.peaklat.anovaBF[order(compare.N1.peakla
 kable(format(compare.N1.peaklat.anovaBF, scientific = TRUE), digits = 2)
 ```
 
-Exploratory analyses suggest that omitting *emotion* from the full model improves fitting by `r compare.N1.peaklat.anovaBF$med[1]` times. Removing *size x contrast*, *size x emotion*, *size x contrast x emotion*, and *size x emotion* also improves fitting by `r compare.N1.peaklat.anovaBF$med[2]`, `r compare.N1.peaklat.anovaBF$med[3]`, `r compare.N1.peaklat.anovaBF$med[4]`, and `r compare.N1.peaklat.anovaBF$med[5]` times, respectively.   
+Exploratory analyses suggest that omitting *emotion* from the full model improves fitting by `r compare.N1.peaklat.anovaBF$med[1]` times. Removing *size x contrast*, *contrast x emotion*, *size x contrast x emotion*, and *size x emotion* also improves fitting by `r compare.N1.peaklat.anovaBF$med[2]`, `r compare.N1.peaklat.anovaBF$med[3]`, `r compare.N1.peaklat.anovaBF$med[4]`, and `r compare.N1.peaklat.anovaBF$med[5]` times, respectively.   
 Conversely, omitting  *size* lowers the explanatory value of the resulting model by `r 1/compare.N1.peaklat.anovaBF$med[6]` times. Finally, omitting the factor *contrast* is maximally detrimental, as it would lower the explanatory value of the resulting model by `r 1/compare.N1.peaklat.anovaBF$med[7]` times.
 
 ***
