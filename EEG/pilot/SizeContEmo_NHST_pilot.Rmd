@@ -51,12 +51,6 @@ opts_chunk$set(
   fig.dim = c(10, 6) # width and height of all figures
   )
 
-# 
-# expname <- "SizeContEmo" # experiment name
-# expphase <- "pilot" # experiment phase
-# wd <- paste("D:/OneDrive - UGent/", expname, "/analysis/EEG/", expphase, "/", sep = "") # work directory
-# setwd(wd) # set work directory
-
 ```
 
 ```{r main_data}
