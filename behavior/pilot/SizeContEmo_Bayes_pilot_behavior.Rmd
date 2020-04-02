@@ -13,36 +13,48 @@ output:
 
 Analysis of behavioral data. It is now done on averaged data, but the final dataset will have trial information.
 
-```{r setup_environment,echo=FALSE,warning=FALSE,message=FALSE}
-# setup work environment
-# dev.off() # clear plots (if no plots are present, comment it out or it will throw an error)
-cat("\014") # clear console
-rm(list=ls()) # clear environment
+```{r setup_environment, include = FALSE}
+
+# ## install packages
+# install.packages("here")
+# install.packages("knitr")
+# install.packages("Rmisc")
+# install.packages("yarrr")
+# install.packages("BayesFactor")
+
+## load packages
+library(here)
+library(knitr)
+library(Rmisc)
+library(yarrr)
+library(BayesFactor)
+
 set.seed(9001) # specify seed for RNG and ensure reproducible results (it's over 9000!)
+
+# report output
+options(width = 120, # change output width (for better printing)
+        scipen = 999, # disable scientific notation (default: scipen = 0)
+        digits = 3) # constrain output to 3 decimals
+
+# chunk options
+opts_chunk$set(
+  warning = FALSE, # no package warnings
+  message = FALSE, # no package messages
+  fig.dim = c(10, 6) # width and height of all figures
+  )
 
 expname <- "SizeContEmo" # experiment name
 expphase <- "pilot" # experiment phase
-wd <- paste0("D:/OneDrive - UGent/",expname,"/analysis/behavior/",expphase,"/") # work directory
-setwd(wd) # set work directory
 
-# load relevant libraries
-library(knitr) # dynamic report generation
-library(Rmisc) # for advanced summary functions
-library(yarrr) # amazing graphs
-library(BayesFactor) # calculate Bayes factors
-```
-
-```{r setup_output}
-# setup report output
-options(width=120,scipen=999,digits=3) # change output width (for better printing), disable scientific notation (default: scipen=0), constrain output to 4 decimals
-opts_chunk$set(warning=FALSE,message=FALSE,fig.width=10,fig.height=6) # for each chunk, display the output but not the R code (echo=FALSE), no package warnings (message=FALSE), no package messages (message=FALSE), width and height of all figures
 ```
 
 ```{r main_data}
-data.behav <- read.csv(paste0(expphase,"_behavioral_data.csv"),header=TRUE) # load data
 
-data.behav <- within(data.behav,Size<-relevel(Size,ref="Large")) # reference: large size
-data.behav <- within(data.behav,Cont<-relevel(Cont,ref="High")) # reference: high contrast
+data.behav <- read.csv(paste0(expphase, "_behavioral_data.csv"), header = TRUE) # load data
+
+data.behav <- within(data.behav, Size <- relevel(Size, ref = "Large")) # reference: large size
+data.behav <- within(data.behav, Cont <- relevel(Cont, ref = "High")) # reference: high contrast
+
 ```
 
 The data we will use in this demo come from a pilot experiment (N=`r length(unique(data.behav$Participant))`).
@@ -66,55 +78,58 @@ We will then compare the best competing models to understand which one should be
 # kable(summary.data.Acc)
 
 # accuracy graph
-pirateplot(formula=Accuracy~Cont+Size, # dependent~independent variables
-           data=data.behav, # data frame
-           main="Accuracy", # main title
-           xlim=NULL, # x-axis: limits
-           xlab="",  # x-axis: label
-           ylim=c(.8,1), # y-axis: limits
-           ylab="proportion correct responses", # y-axis: label
-           inf.method="hdi", # type of inference: 95% Bayesian Highest Density Interval (HDI)
-           hdi.iter=5000, # number of iterations for 95% HDI
-           cap.beans=TRUE, # max and min values of bean densities are capped at the limits found in the data
-           pal="xmen") # color palette [see piratepal(palette="all")]
+pirateplot(
+  formula = Accuracy ~ Cont + Size, # dependent~independent variables
+  data = data.behav, # data frame
+  main = "Accuracy", # main title
+  xlim = NULL, # x-axis: limits
+  xlab = "", # x-axis: label
+  ylim = c(.8, 1), # y-axis: limits
+  ylab = "proportion correct responses", # y-axis: label
+  inf.method = "hdi", # type of inference: 95% Bayesian Highest Density Interval (HDI)
+  hdi.iter = 5000, # number of iterations for 95% HDI
+  cap.beans = TRUE, # max and min values of bean densities are capped at the limits found in the data
+  pal = "xmen"
+) # color palette [see piratepal(palette="all")]
 ```  
 
 ```{r acc_models}
 
 niter <- 10000 # number of MonteCarlo iterations
-scaling.factor <- c(.5,sqrt(2)/2,1) # scaling factors of JZS prior: narrow, medium, wide)
+scaling.factor <- c(.5, sqrt(2) / 2, 1) # scaling factors of JZS prior: narrow, medium, wide)
 
-compare.Acc.BF <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all BF10
-compare.Acc.perc.err <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all % errors
+compare.Acc.BF <- matrix(NA, 4, length(scaling.factor)) # preallocate matrix with all BF10
+compare.Acc.perc.err <- matrix(NA, 4, length(scaling.factor)) # preallocate matrix with all % errors
 
-for(k in 1:length(scaling.factor)) { # loop through scaling factors
-  
+for (k in 1:length(scaling.factor)) { # loop through scaling factors
+
   ### main effect of size
-  Acc.size.BF <- lmBF(Accuracy~Size,data.behav,whichRandom="Participant",rscaleFixed=scaling.factor[k],rscaleRandom="nuisance",rscaleCont="medium",iterations=niter,posterior=FALSE)
-  
+  Acc.size.BF <- lmBF(Accuracy ~ Size, data.behav, whichRandom = "Participant", rscaleFixed = scaling.factor[k], rscaleRandom = "nuisance", rscaleCont = "medium", iterations = niter, posterior = FALSE)
+
   ### main effect of contrast
-  Acc.cont.BF <- lmBF(Accuracy~Cont,data.behav,whichRandom="Participant",rscaleFixed=scaling.factor[k],rscaleRandom="nuisance",rscaleCont="medium",iterations=niter,posterior=FALSE)
-  
+  Acc.cont.BF <- lmBF(Accuracy ~ Cont, data.behav, whichRandom = "Participant", rscaleFixed = scaling.factor[k], rscaleRandom = "nuisance", rscaleCont = "medium", iterations = niter, posterior = FALSE)
+
   ### main effects of size and contrast
-  Acc.sizepluscont.BF <- lmBF(Accuracy~Size+Cont,data.behav,whichRandom="Participant",rscaleFixed=scaling.factor[k],rscaleRandom="nuisance",rscaleCont="medium",iterations=niter,posterior=FALSE)
- 
+  Acc.sizepluscont.BF <- lmBF(Accuracy ~ Size + Cont, data.behav, whichRandom = "Participant", rscaleFixed = scaling.factor[k], rscaleRandom = "nuisance", rscaleCont = "medium", iterations = niter, posterior = FALSE)
+
   ### full model: main effects of size and contrast + their interaction
-  Acc.full.BF <- lmBF(Accuracy~Size*Cont,data.behav,whichRandom="Participant",rscaleFixed=scaling.factor[k],rscaleRandom="nuisance",rscaleCont="medium",iterations=niter,posterior=FALSE)
-  
+  Acc.full.BF <- lmBF(Accuracy ~ Size * Cont, data.behav, whichRandom = "Participant", rscaleFixed = scaling.factor[k], rscaleRandom = "nuisance", rscaleCont = "medium", iterations = niter, posterior = FALSE)
+
   ### model comparison
   # BFs
-  compare.Acc.BF[,k] <- c(exp(1)^Acc.size.BF@bayesFactor$bf[1],exp(1)^Acc.cont.BF@bayesFactor$bf[1],exp(1)^Acc.sizepluscont.BF@bayesFactor$bf[1],exp(1)^Acc.full.BF@bayesFactor$bf[1])
+  compare.Acc.BF[, k] <- c(exp(1)^Acc.size.BF@bayesFactor$bf[1], exp(1)^Acc.cont.BF@bayesFactor$bf[1], exp(1)^Acc.sizepluscont.BF@bayesFactor$bf[1], exp(1)^Acc.full.BF@bayesFactor$bf[1])
   # percentage of error
-  compare.Acc.perc.err[,k] <- c(Acc.size.BF@bayesFactor$error[1]*100,Acc.cont.BF@bayesFactor$error[1]*100,Acc.sizepluscont.BF@bayesFactor$error[1]*100,Acc.full.BF@bayesFactor$error[1]*100)
-  
+  compare.Acc.perc.err[, k] <- c(Acc.size.BF@bayesFactor$error[1] * 100, Acc.cont.BF@bayesFactor$error[1] * 100, Acc.sizepluscont.BF@bayesFactor$error[1] * 100, Acc.full.BF@bayesFactor$error[1] * 100)
 }
 
 # summary
-compare.Acc <- data.frame("model"=c("size","contr","size + cont","full"),
-"nar"=round(compare.Acc.BF[,1],digits=3),"nar.p.err"=round(compare.Acc.perc.err[,1],digits=3),
-"med"=round(compare.Acc.BF[,2],digits=3),"med.p.err"=round(compare.Acc.perc.err[,2],digits=3),
-"wid"=round(compare.Acc.BF[,3],digits=3),"wid.p.err"=round(compare.Acc.perc.err[,3],digits=3))
-compare.Acc <- compare.Acc[order(compare.Acc$med,decreasing=TRUE),] # sort according to medium scaling factor (in descending order)
+compare.Acc <- data.frame(
+  "model" = c("size", "contr", "size + cont", "full"),
+  "nar" = round(compare.Acc.BF[, 1], digits = 3), "nar.p.err" = round(compare.Acc.perc.err[, 1], digits = 3),
+  "med" = round(compare.Acc.BF[, 2], digits = 3), "med.p.err" = round(compare.Acc.perc.err[, 2], digits = 3),
+  "wid" = round(compare.Acc.BF[, 3], digits = 3), "wid.p.err" = round(compare.Acc.perc.err[, 3], digits = 3)
+)
+compare.Acc <- compare.Acc[order(compare.Acc$med, decreasing = TRUE), ] # sort according to medium scaling factor (in descending order)
 kable(compare.Acc)
 ```
    
@@ -129,59 +144,60 @@ The best model (`r ifelse(compare.Acc[1,4]>1,as.character(compare.Acc[1,1]),"nul
 # kable(summary.data.RT)
 
 # RT graph
-pirateplot(formula=RT~Cont+Size, # dependent~independent variables
-           data=data.behav, # data frame
-           main="Reaction Times", # main title
-           xlim=NULL, # x-axis: limits
-           xlab="",  # x-axis: label
-           ylim=c(400,800), # y-axis: limits
-           ylab="ms", # y-axis: label
-           inf.method="hdi", # type of inference: 95% Bayesian Highest Density Interval (HDI)
-           hdi.iter=5000, # number of iterations for 95% HDI
-           cap.beans=TRUE, # max and min values of bean densities are capped at the limits found in the data
-           pal="xmen") # color palette [see piratepal(palette="all")]
+pirateplot(
+  formula = RT ~ Cont + Size, # dependent~independent variables
+  data = data.behav, # data frame
+  main = "Reaction Times", # main title
+  xlim = NULL, # x-axis: limits
+  xlab = "", # x-axis: label
+  ylim = c(400, 800), # y-axis: limits
+  ylab = "ms", # y-axis: label
+  inf.method = "hdi", # type of inference: 95% Bayesian Highest Density Interval (HDI)
+  hdi.iter = 5000, # number of iterations for 95% HDI
+  cap.beans = TRUE, # max and min values of bean densities are capped at the limits found in the data
+  pal = "xmen"
+) # color palette [see piratepal(palette="all")]
 ```  
 
 ```{r RT_models}
 
 niter <- 10000 # number of MonteCarlo iterations
-scaling.factor <- c(.5,sqrt(2)/2,1) # scaling factors of JZS prior: narrow, medium, wide)
+scaling.factor <- c(.5, sqrt(2) / 2, 1) # scaling factors of JZS prior: narrow, medium, wide)
 
-compare.RT.BF <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all BF10
-compare.RT.perc.err <- matrix(NA,4,length(scaling.factor)) # preallocate matrix with all % errors
+compare.RT.BF <- matrix(NA, 4, length(scaling.factor)) # preallocate matrix with all BF10
+compare.RT.perc.err <- matrix(NA, 4, length(scaling.factor)) # preallocate matrix with all % errors
 
-for(k in 1:length(scaling.factor)) { # loop through scaling factors
-  
+for (k in 1:length(scaling.factor)) { # loop through scaling factors
+
   ### main effect of size
-  RT.size.BF <- lmBF( RT~Size,data.behav,whichRandom="Participant",rscaleFixed=scaling.factor[k],rscaleRandom="nuisance",rscaleCont="medium",iterations=niter,posterior=FALSE)
-  
+  RT.size.BF <- lmBF(RT ~ Size, data.behav, whichRandom = "Participant", rscaleFixed = scaling.factor[k], rscaleRandom = "nuisance", rscaleCont = "medium", iterations = niter, posterior = FALSE)
+
   ### main effect of contrast
-  RT.cont.BF <- lmBF( RT~Cont,data.behav,whichRandom="Participant",rscaleFixed=scaling.factor[k],rscaleRandom="nuisance",rscaleCont="medium",iterations=niter,posterior=FALSE)
-  
+  RT.cont.BF <- lmBF(RT ~ Cont, data.behav, whichRandom = "Participant", rscaleFixed = scaling.factor[k], rscaleRandom = "nuisance", rscaleCont = "medium", iterations = niter, posterior = FALSE)
+
   ### main effects of size and contrast
-   RT.sizepluscont.BF <- lmBF( RT~Size+Cont,data.behav,whichRandom="Participant",rscaleFixed=scaling.factor[k],rscaleRandom="nuisance",rscaleCont="medium",iterations=niter,posterior=FALSE)
- 
+  RT.sizepluscont.BF <- lmBF(RT ~ Size + Cont, data.behav, whichRandom = "Participant", rscaleFixed = scaling.factor[k], rscaleRandom = "nuisance", rscaleCont = "medium", iterations = niter, posterior = FALSE)
+
   ### full model: main effects of size and contrast + their interaction
-   RT.full.BF <- lmBF( RT~Size*Cont,data.behav,whichRandom="Participant",rscaleFixed=scaling.factor[k],rscaleRandom="nuisance",rscaleCont="medium",iterations=niter,posterior=FALSE)
-  
+  RT.full.BF <- lmBF(RT ~ Size * Cont, data.behav, whichRandom = "Participant", rscaleFixed = scaling.factor[k], rscaleRandom = "nuisance", rscaleCont = "medium", iterations = niter, posterior = FALSE)
+
   ### model comparison
   # BFs
-  compare.RT.BF[,k] <- c(exp(1)^RT.size.BF@bayesFactor$bf[1],exp(1)^RT.cont.BF@bayesFactor$bf[1],exp(1)^RT.sizepluscont.BF@bayesFactor$bf[1],exp(1)^RT.full.BF@bayesFactor$bf[1])
+  compare.RT.BF[, k] <- c(exp(1)^RT.size.BF@bayesFactor$bf[1], exp(1)^RT.cont.BF@bayesFactor$bf[1], exp(1)^RT.sizepluscont.BF@bayesFactor$bf[1], exp(1)^RT.full.BF@bayesFactor$bf[1])
   # percentage of error
-  compare.RT.perc.err[,k] <- c(RT.size.BF@bayesFactor$error[1]*100,RT.cont.BF@bayesFactor$error[1]*100,RT.sizepluscont.BF@bayesFactor$error[1]*100,RT.full.BF@bayesFactor$error[1]*100)
-  
+  compare.RT.perc.err[, k] <- c(RT.size.BF@bayesFactor$error[1] * 100, RT.cont.BF@bayesFactor$error[1] * 100, RT.sizepluscont.BF@bayesFactor$error[1] * 100, RT.full.BF@bayesFactor$error[1] * 100)
 }
 
 # summary
-compare.RT <- data.frame("model"=c("size","contr","size + cont","full"),
-"nar"=round(compare.RT.BF[,1],digits=3),"nar.p.err"=round(compare.RT.perc.err[,1],digits=3),
-"med"=round(compare.RT.BF[,2],digits=3),"med.p.err"=round(compare.RT.perc.err[,2],digits=3),
-"wid"=round(compare.RT.BF[,3],digits=3),"wid.p.err"=round(compare.RT.perc.err[,3],digits=3))
-compare.RT <- compare.RT[order(compare.RT$med,decreasing=TRUE),] # sort according to medium scaling factor (in descending order)
+compare.RT <- data.frame(
+  "model" = c("size", "contr", "size + cont", "full"),
+  "nar" = round(compare.RT.BF[, 1], digits = 3), "nar.p.err" = round(compare.RT.perc.err[, 1], digits = 3),
+  "med" = round(compare.RT.BF[, 2], digits = 3), "med.p.err" = round(compare.RT.perc.err[, 2], digits = 3),
+  "wid" = round(compare.RT.BF[, 3], digits = 3), "wid.p.err" = round(compare.RT.perc.err[, 3], digits = 3)
+)
+compare.RT <- compare.RT[order(compare.RT$med, decreasing = TRUE), ] # sort according to medium scaling factor (in descending order)
 kable(compare.RT)
 ```
    
 When using a JZS prior with scaling factor r=`r scaling.factor[2]` placed on standardized effect sizes, the model `r ifelse(compare.RT[1,4]<1,"null",as.character(compare.RT[1,1]))` ought to be preferred.   
 The best model (`r ifelse(compare.RT[1,4]>1,as.character(compare.RT[1,1]),"null")`) explains the observed data `r ifelse(compare.RT[1,4]>1,compare.RT[1,4]/compare.RT[2,4],1/compare.RT[1,4])` times better than the second best model (`r ifelse(compare.RT[1,4]>1,as.character(compare.RT[2,1]),as.character(compare.RT[1,1]))`).   
-
-
